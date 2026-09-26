@@ -216,3 +216,7 @@ elif app_mode == "📊 الرسم البياني والتحليلات":
                 st.bar_chart(type_totals.set_index("نوع المعاملة")["المبلغ"])
     else:
         st.info("لا توجد بيانات مسجلة في النظام حتى الآن لعرض الرسم البياني.")
+
+# حقوق التطوير في أسفل القائمة الجانبية
+st.sidebar.markdown("---")
+st.sidebar.markdown("👨‍💻 **Developed by:** **Mohamed Elsayed**")
