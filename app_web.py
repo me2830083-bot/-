@@ -1,14 +1,13 @@
-import pandas as pd
 import os
 from datetime import datetime
+import pandas as pd
 import streamlit as st
 
 st.set_page_config(page_title="نظام تسجيل المصروفات", layout="wide")
 
 # إنشاء مجلد البيانات إذا لم يكن موجوداً
 DATA_DIR = "company_data"
-if not os.path.exists(DATA_DIR):
-    os.makedirs(DATA_DIR)
+os.makedirs(DATA_DIR, exist_ok=True)
 
 
 def load_company_data(company_name):
@@ -89,6 +88,7 @@ if selected_company:
                     "المستلم": recipient_val.strip(),
                     "البيان / السبب": notes_val.strip(),
                 }
+                df = pd.concat([df, pd.DataFrame([new_row])], ignore_ignore_index=True) if hasattr(pd, "concat") else df
                 df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
                 save_company_data(selected_company, df)
                 st.success("تم تسجيل الحركة بنجاح!")
