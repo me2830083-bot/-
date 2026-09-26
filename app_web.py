@@ -1,3 +1,110 @@
+Skip to content
+me2830083-bot
+-
+Repository navigation
+Code
+Issues
+Pull requests
+Actions
+Projects
+Wiki
+Security and quality
+Insights
+Settings
+Files
+Go to file
+t
+T
+app_web.py
+​requirements.txt
+-
+/
+app_web.py
+in
+main
+
+Edit
+
+Preview
+Indent mode
+
+Spaces
+Indent size
+
+4
+Line wrap mode
+
+No wrap
+Editing app_web.py file contents
+  1
+  2
+  3
+  4
+  5
+  6
+  7
+  8
+  9
+ 10
+ 11
+ 12
+ 13
+ 14
+ 15
+ 16
+ 17
+ 18
+ 19
+ 20
+ 21
+ 22
+ 23
+ 24
+ 25
+ 26
+ 27
+ 28
+ 29
+ 30
+ 31
+ 32
+ 33
+ 34
+ 35
+ 36
+ 37
+ 38
+ 39
+ 40
+ 41
+ 42
+ 43
+ 44
+ 45
+ 46
+ 47
+ 48
+ 49
+ 50
+ 51
+ 52
+ 53
+ 54
+ 55
+ 56
+ 57
+ 58
+ 59
+ 60
+ 61
+ 62
+ 63
+ 64
+ 65
+ 66
+ 67
+ 68
+ 69
 import os
 from datetime import datetime
 import pandas as pd
@@ -67,64 +174,5 @@ if selected_company:
 
     df = load_company_data(selected_company)
 
-    # نموذج إضافة مدفوعات
-    with st.form("payment_form", clear_on_submit=True):
-        st.write("### تسجيل حركة جديدة")
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            date_val = st.date_input("التاريخ", datetime.now().date())
-        with col2:
-            payment_type = st.selectbox(
-                "نوع المعاملة", ["كاش", "تحويل", "شيك"]
-            )
-            amount_val = st.number_input(
-                "المبلغ", min_value=0.0, step=10.0, format="%.2f"
-            )
-        with col3:
-            recipient_val = st.text_input("المستلم")
-
-        submit = st.form_submit_button("حفظ الحركة")
-
-        if submit:
-            if amount_val > 0 and recipient_val.strip():
-                new_row = {
-                    "التاريخ": date_val,
-                    "نوع المعاملة": payment_type,
-                    "المبلغ": amount_val,
-                    "المستلم": recipient_val.strip(),
-                }
-                df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
-                save_company_data(selected_company, df)
-                st.success("تم تسجيل الحركة بنجاح!")
-                st.rerun()
-            else:
-                st.error("يرجى إدخال المبلغ واسم المستلم بشكل صحيح.")
-
-    st.write("---")
-    st.write("### سجل المدفوعات الحالي")
-
-    if not df.empty:
-        # عرض البيانات وإتاحة التعديل/الحذف
-        edited_df = st.data_editor(
-            df,
-            num_rows="dynamic",
-            use_container_width=True,
-            column_config={
-                "نوع المعاملة": st.column_config.SelectboxColumn(
-                    "نوع المعاملة",
-                    options=["كاش", "تحويل", "شيك"],
-                    required=True,
-                )
-            },
-        )
-
-        if st.button("حفظ التعديلات على الجدول"):
-            save_company_data(selected_company, edited_df)
-            st.success("تم حفظ التعديلات بنجاح!")
-            st.rerun()
-
-        # حساب الإجمالي
-        total_amount = edited_df["المبلغ"].sum()
-        st.metric("إجمالي المصروفات", f"{total_amount:,.2f}")
-    else:
-        st.write("لا توجد حركات مسجلة بهذه الشركة بعد.")
+Use Control + Shift + m to toggle the tab key moving focus. Alternatively, use esc then tab to move to the next interactive element on the page.
+ 
