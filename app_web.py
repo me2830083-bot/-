@@ -9,16 +9,19 @@ st.set_page_config(page_title="نظام تسجيل المصروفات", layout="
 DATA_DIR = "company_data"
 os.makedirs(DATA_DIR, exist_ok=True)
 
+COLUMNS = ["التاريخ", "نوع المعاملة", "المبلغ", "المستلم", "البيان / السبب"]
+
 
 def load_company_data(company_name):
     filepath = os.path.join(DATA_DIR, f"{company_name}.csv")
     if os.path.exists(filepath):
         df = pd.read_csv(filepath)
         df["التاريخ"] = pd.to_datetime(df["التاريخ"]).dt.date
+        # التأكد من وجود عمود نوع المعاملة في الملفات القديمة
+        if "نوع المعاملة" not in df.columns:
+            df.insert(1, "نوع المعاملة", "كاش")
         return df
-    return pd.DataFrame(
-        columns=["التاريخ", "المبلغ", "المستلم", "البيان / السبب"]
-    )
+    return pd.DataFrame(columns=COLUMNS)
 
 
 def save_company_data(company_name, df):
@@ -40,9 +43,7 @@ new_company = st.sidebar.text_input("إضافة شركة جديدة:")
 if st.sidebar.button("إضافة الشركة"):
     if new_company.strip():
         if new_company.strip() not in existing_companies:
-            df_empty = pd.DataFrame(
-                columns=["التاريخ", "المبلغ", "المستلم", "البيان / السبب"]
-            )
+            df_empty = pd.DataFrame(columns=COLUMNS)
             save_company_data(new_company.strip(), df_empty)
             st.sidebar.success(f"تمت إضافة شركة {new_company}")
             st.rerun()
@@ -68,14 +69,18 @@ if selected_company:
     # نموذج إضافة مدفوعات
     with st.form("payment_form", clear_on_submit=True):
         st.write("### تسجيل حركة جديدة")
-        col1, col2 = st.columns(2)
+        col1, col2, col3 = st.columns(3)
         with col1:
             date_val = st.date_input("التاريخ", datetime.now().date())
+            payment_type = st.selectbox(
+                "نوع المعاملة", ["كاش", "تحويل", "شيك"]
+            )
+        with col2:
             amount_val = st.number_input(
                 "المبلغ", min_value=0.0, step=10.0, format="%.2f"
             )
-        with col2:
             recipient_val = st.text_input("المستلم")
+        with col3:
             notes_val = st.text_input("البيان / السبب")
 
         submit = st.form_submit_button("حفظ الحركة")
@@ -84,6 +89,7 @@ if selected_company:
             if amount_val > 0 and recipient_val.strip():
                 new_row = {
                     "التاريخ": date_val,
+                    "نوع المعاملة": payment_type,
                     "المبلغ": amount_val,
                     "المستلم": recipient_val.strip(),
                     "البيان / السبب": notes_val.strip(),
@@ -101,7 +107,16 @@ if selected_company:
     if not df.empty:
         # عرض البيانات وإتاحة التعديل/الحذف
         edited_df = st.data_editor(
-            df, num_rows="dynamic", use_container_width=True
+            df,
+            num_rows="dynamic",
+            use_container_width=True,
+            column_config={
+                "نوع المعاملة": st.column_config.SelectboxColumn(
+                    "نوع المعاملة",
+                    options=["كاش", "تحويل", "شيك"],
+                    required=True,
+                )
+            },
         )
 
         if st.button("حفظ التعديلات على الجدول"):
