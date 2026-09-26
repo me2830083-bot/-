@@ -42,10 +42,35 @@ def save_monthly_data(company_name, year, month, df):
     df.to_csv(filepath, index=False)
 
 
-st.title("📊 نظام إدارة وتسجيل المصروفات الشهري")
+def load_all_data():
+    all_records = []
+    if not os.path.exists(DATA_DIR):
+        return pd.DataFrame()
+    for company in os.listdir(DATA_DIR):
+        company_path = os.path.join(DATA_DIR, company)
+        if os.path.isdir(company_path):
+            for file in os.listdir(company_path):
+                if file.endswith(".csv"):
+                    filepath = os.path.join(company_path, file)
+                    try:
+                        df = pd.read_csv(filepath)
+                        df["الشركة"] = company
+                        all_records.append(df)
+                    except Exception:
+                        pass
+    if all_records:
+        full_df = pd.concat(all_records, ignore_index=True)
+        if "المبلغ" in full_df.columns:
+            full_df["المبلغ"] = pd.to_numeric(full_df["المبلغ"], errors="coerce").fillna(0)
+        return full_df
+    return pd.DataFrame()
+
+
+st.title("📊 نظام إدارة وتسجيل المصروفات")
 
 # القائمة الجانبية
-st.sidebar.header("إدارة الشركات والفترات")
+st.sidebar.header("النمط والقائمة الجانبية")
+app_mode = st.sidebar.radio("اختر الشاشة:", ["إدارة الحركات الشهرية", "📊 الرسم البياني والتحليلات"])
 
 # جلب قائمة الشركات الموجودة (المجلدات)
 existing_companies = [
@@ -53,116 +78,141 @@ existing_companies = [
     if os.path.isdir(os.path.join(DATA_DIR, d))
 ]
 
-# إضافة شركة جديدة
-new_company = st.sidebar.text_input("إضافة شركة جديدة:")
-if st.sidebar.button("إضافة الشركة"):
-    if new_company.strip():
-        comp_name = new_company.strip()
-        comp_dir = os.path.join(DATA_DIR, comp_name)
-        if not os.path.exists(comp_dir):
-            os.makedirs(comp_dir, exist_ok=True)
-            st.sidebar.success(f"تمت إضافة شركة {comp_name}")
-            st.rerun()
-        else:
-            st.sidebar.warning("الشركة موجودة بالفعل!")
-    else:
-        st.sidebar.error("يرجى كتابة اسم الشركة")
+if app_mode == "إدارة الحركات الشهرية":
+    st.sidebar.header("إدارة الشركات والفترات")
 
-if existing_companies:
-    selected_company = st.sidebar.selectbox("اختر الشركة:", sorted(existing_companies))
-    
-    # اختيار السنة والشهر
-    current_year = datetime.now().year
-    current_month = datetime.now().month
-    
-    selected_year = st.sidebar.number_input(
-        "السنة:", min_value=2020, max_value=2035, value=current_year, step=1
-    )
-    
-    selected_month = st.sidebar.selectbox(
-        "الشهر:", 
-        options=list(MONTH_NAMES.keys()), 
-        format_func=lambda x: MONTH_NAMES[x],
-        index=current_month - 1
-    )
-else:
-    selected_company = None
-    st.info("قم بإضافة شركة جديدة من القائمة الجانبية للبدء.")
-
-if selected_company:
-    st.subheader(f"🏢 الشركة: {selected_company} | 📅 سجل شهر: {MONTH_NAMES[selected_month]} {selected_year}")
-
-    df = load_monthly_data(selected_company, selected_year, selected_month)
-
-    # نموذج إضافة مدفوعات جديدة
-    with st.form("payment_form", clear_on_submit=True):
-        st.write("### ➕ تسجيل حركة جديدة")
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            date_val = st.date_input("التاريخ", datetime.now().date())
-        with col2:
-            payment_type = st.selectbox("نوع المعاملة", ["كاش", "تحويل", "شيك"])
-            amount_val = st.number_input("المبلغ", min_value=0.0, step=10.0, format="%.2f")
-        with col3:
-            recipient_val = st.text_input("المستلم")
-
-        submit = st.form_submit_button("حفظ الحركة")
-
-        if submit:
-            if amount_val > 0 and recipient_val.strip():
-                new_row = {
-                    "التاريخ": date_val,
-                    "نوع المعاملة": payment_type,
-                    "المبلغ": amount_val,
-                    "المستلم": recipient_val.strip(),
-                }
-                df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
-                save_monthly_data(selected_company, selected_year, selected_month, df)
-                st.success("تم تسجيل الحركة بنجاح!")
+    # إضافة شركة جديدة
+    new_company = st.sidebar.text_input("إضافة شركة جديدة:")
+    if st.sidebar.button("إضافة الشركة"):
+        if new_company.strip():
+            comp_name = new_company.strip()
+            comp_dir = os.path.join(DATA_DIR, comp_name)
+            if not os.path.exists(comp_dir):
+                os.makedirs(comp_dir, exist_ok=True)
+                st.sidebar.success(f"تمت إضافة شركة {comp_name}")
                 st.rerun()
             else:
-                st.error("يرجى إدخال المبلغ واسم المستلم بشكل صحيح.")
-
-    st.write("---")
-    st.write("### 📋 سجل المدفوعات الحالي")
-
-    if not df.empty:
-        # شريط البحث باسم المستلم
-        search_query = st.text_input("🔍 بحث باسم المستلم:", "").strip()
-
-        # تصفية الجدول بناءً على البحث
-        if search_query:
-            filtered_df = df[df["المستلم"].str.contains(search_query, case=False, na=False)]
+                st.sidebar.warning("الشركة موجودة بالفعل!")
         else:
-            filtered_df = df
+            st.sidebar.error("يرجى كتابة اسم الشركة")
 
-        # عرض الجدول القابل للتعديل
-        edited_df = st.data_editor(
-            filtered_df,
-            num_rows="dynamic",
-            use_container_width=True,
-            column_config={
-                "نوع المعاملة": st.column_config.SelectboxColumn(
-                    "نوع المعاملة",
-                    options=["كاش", "تحويل", "شيك"],
-                    required=True,
-                )
-            },
+    if existing_companies:
+        selected_company = st.sidebar.selectbox("اختر الشركة:", sorted(existing_companies))
+        
+        current_year = datetime.now().year
+        current_month = datetime.now().month
+        
+        selected_year = st.sidebar.number_input(
+            "السنة:", min_value=2020, max_value=2035, value=current_year, step=1
         )
-
-        if st.button("حفظ التعديلات على الجدول"):
-            if search_query:
-                # تحديث الصفوف التي تم تعديلها فقط في البيانات الأصلية
-                df.update(edited_df)
-            else:
-                df = edited_df
-                
-            save_monthly_data(selected_company, selected_year, selected_month, df)
-            st.success("تم حفظ التعديلات بنجاح!")
-            st.rerun()
-
-        # حساب الإجمالي للشهر
-        total_amount = df["المبلغ"].sum()
-        st.metric(f"إجمالي مصروفات شهر {MONTH_NAMES[selected_month]}", f"{total_amount:,.2f} جنيه")
+        
+        selected_month = st.sidebar.selectbox(
+            "الشهر:", 
+            options=list(MONTH_NAMES.keys()), 
+            format_func=lambda x: MONTH_NAMES[x],
+            index=current_month - 1
+        )
     else:
-        st.info("لا توجد حركات مسجلة لهذه الشركة في هذا الشهر بعد.")
+        selected_company = None
+        st.info("قم بإضافة شركة جديدة من القائمة الجانبية للبدء.")
+
+    if selected_company:
+        st.subheader(f"🏢 الشركة: {selected_company} | 📅 سجل شهر: {MONTH_NAMES[selected_month]} {selected_year}")
+
+        df = load_monthly_data(selected_company, selected_year, selected_month)
+
+        # نموذج إضافة مدفوعات جديدة
+        with st.form("payment_form", clear_on_submit=True):
+            st.write("### ➕ تسجيل حركة جديدة")
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                date_val = st.date_input("التاريخ", datetime.now().date())
+            with col2:
+                payment_type = st.selectbox("نوع المعاملة", ["كاش", "تحويل", "شيك"])
+                amount_val = st.number_input("المبلغ", min_value=0.0, step=10.0, format="%.2f")
+            with col3:
+                recipient_val = st.text_input("المستلم")
+
+            submit = st.form_submit_button("حفظ الحركة")
+
+            if submit:
+                if amount_val > 0 and recipient_val.strip():
+                    new_row = {
+                        "التاريخ": date_val,
+                        "نوع المعاملة": payment_type,
+                        "المبلغ": amount_val,
+                        "المستلم": recipient_val.strip(),
+                    }
+                    df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
+                    save_monthly_data(selected_company, selected_year, selected_month, df)
+                    st.success("تم تسجيل الحركة بنجاح!")
+                    st.rerun()
+                else:
+                    st.error("يرجى إدخال المبلغ واسم المستلم بشكل صحيح.")
+
+        st.write("---")
+        st.write("### 📋 سجل المدفوعات الحالي")
+
+        if not df.empty:
+            search_query = st.text_input("🔍 بحث باسم المستلم:", "").strip()
+
+            if search_query:
+                filtered_df = df[df["المستلم"].str.contains(search_query, case=False, na=False)]
+            else:
+                filtered_df = df
+
+            edited_df = st.data_editor(
+                filtered_df,
+                num_rows="dynamic",
+                use_container_width=True,
+                column_config={
+                    "نوع المعاملة": st.column_config.SelectboxColumn(
+                        "نوع المعاملة",
+                        options=["كاش", "تحويل", "شيك"],
+                        required=True,
+                    )
+                },
+            )
+
+            if st.button("حفظ التعديلات على الجدول"):
+                if search_query:
+                    df.update(edited_df)
+                else:
+                    df = edited_df
+                    
+                save_monthly_data(selected_company, selected_year, selected_month, df)
+                st.success("تم حفظ التعديلات بنجاح!")
+                st.rerun()
+
+            total_amount = df["المبلغ"].sum()
+            st.metric(f"إجمالي مصروفات شهر {MONTH_NAMES[selected_month]}", f"{total_amount:,.2f} جنيه")
+        else:
+            st.info("لا توجد حركات مسجلة لهذه الشركة في هذا الشهر بعد.")
+
+elif app_mode == "📊 الرسم البياني والتحليلات":
+    st.subheader("📈 إحصائيات وإجمالي المدفوعات للشركات")
+    
+    all_df = load_all_data()
+    
+    if not all_df.empty and "الشركة" in all_df.columns and "المبلغ" in all_df.columns:
+        # رسم بياني لإجمالي الدفعات لكل شركة
+        company_totals = all_df.groupby("الشركة")["المبلغ"].sum().reset_index()
+        company_totals = company_totals.sort_values(by="المبلغ", ascending=False)
+        
+        st.write("### 🏆 ترتيب الشركات حسب أعلى إجمالي مدفوعات")
+        st.bar_chart(company_totals.set_index("الشركة")["المبلغ"])
+        
+        st.write("---")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            st.write("#### 📄 تفاصيل إجمالي الشركات")
+            st.dataframe(company_totals.style.format({"المبلغ": "{:,.2f} جنيه"}), use_container_width=True)
+            
+        with col2:
+            if "نوع المعاملة" in all_df.columns:
+                st.write("#### 💳 توزيع المدفوعات حسب نوع المعاملة")
+                type_totals = all_df.groupby("نوع المعاملة")["المبلغ"].sum().reset_index()
+                st.bar_chart(type_totals.set_index("نوع المعاملة")["المبلغ"])
+    else:
+        st.info("لا توجد بيانات مسجلة في النظام حتى الآن لعرض الرسم البياني.")
