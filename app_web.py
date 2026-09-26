@@ -9,7 +9,7 @@ st.set_page_config(page_title="نظام تسجيل المصروفات", layout="
 DATA_DIR = "company_data"
 os.makedirs(DATA_DIR, exist_ok=True)
 
-COLUMNS = ["التاريخ", "نوع المعاملة", "المبلغ", "المستلم", "البيان / السبب"]
+COLUMNS = ["التاريخ", "نوع المعاملة", "المبلغ", "المستلم"]
 
 
 def load_company_data(company_name):
@@ -17,10 +17,11 @@ def load_company_data(company_name):
     if os.path.exists(filepath):
         df = pd.read_csv(filepath)
         df["التاريخ"] = pd.to_datetime(df["التاريخ"]).dt.date
-        # التأكد من وجود عمود نوع المعاملة في الملفات القديمة
+        # التأكد من وجود عمود نوع المعاملة
         if "نوع المعاملة" not in df.columns:
             df.insert(1, "نوع المعاملة", "كاش")
-        return df
+        # الإبقاء فقط على الأعمدة المطلوبة وتجاهل "البيان / السبب" إن وجد
+        return df[[col for col in COLUMNS if col in df.columns]]
     return pd.DataFrame(columns=COLUMNS)
 
 
@@ -72,16 +73,15 @@ if selected_company:
         col1, col2, col3 = st.columns(3)
         with col1:
             date_val = st.date_input("التاريخ", datetime.now().date())
+        with col2:
             payment_type = st.selectbox(
                 "نوع المعاملة", ["كاش", "تحويل", "شيك"]
             )
-        with col2:
             amount_val = st.number_input(
                 "المبلغ", min_value=0.0, step=10.0, format="%.2f"
             )
-            recipient_val = st.text_input("المستلم")
         with col3:
-            notes_val = st.text_input("البيان / السبب")
+            recipient_val = st.text_input("المستلم")
 
         submit = st.form_submit_button("حفظ الحركة")
 
@@ -92,7 +92,6 @@ if selected_company:
                     "نوع المعاملة": payment_type,
                     "المبلغ": amount_val,
                     "المستلم": recipient_val.strip(),
-                    "البيان / السبب": notes_val.strip(),
                 }
                 df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
                 save_company_data(selected_company, df)
