@@ -1,4 +1,5 @@
 import os
+import shutil
 from datetime import datetime
 import pandas as pd
 import streamlit as st
@@ -217,6 +218,22 @@ elif app_mode == "📊 الرسم البياني والتحليلات":
     else:
         st.info("لا توجد بيانات مسجلة في النظام حتى الآن لعرض الرسم البياني.")
 
-# حقوق التطوير في أسفل القائمة الجانبية
+# قسم مسح البيانات المحمي بكلمة مرور
+st.sidebar.markdown("---")
+st.sidebar.subheader("⚠️ إدارة البيانات")
+
+with st.sidebar.expander("🗑️ مسح كل البيانات"):
+    pwd_input = st.text_input("أدخل كلمة المرور للمسح:", type="password")
+    if st.button("تأكيد مسح البيانات"):
+        if pwd_input == "2320166120":
+            if os.path.exists(DATA_DIR):
+                shutil.rmtree(DATA_DIR)
+                os.makedirs(DATA_DIR, exist_ok=True)
+                st.sidebar.success("تم مسح جميع البيانات بنجاح!")
+                st.rerun()
+        else:
+            st.sidebar.error("كلمة المرور غير صحيحة!")
+
+# حقوق التطوير
 st.sidebar.markdown("---")
 st.sidebar.markdown("👨‍💻 **Developed by:** **Mohamed Elsayed**")
