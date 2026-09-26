@@ -88,7 +88,6 @@ if selected_company:
                     "المستلم": recipient_val.strip(),
                     "البيان / السبب": notes_val.strip(),
                 }
-                df = pd.concat([df, pd.DataFrame([new_row])], ignore_ignore_index=True) if hasattr(pd, "concat") else df
                 df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
                 save_company_data(selected_company, df)
                 st.success("تم تسجيل الحركة بنجاح!")
