@@ -132,162 +132,141 @@ if app_mode == "إدارة الوارد من الشركات":
         else:
             st.sidebar.error("يرجى كتابة اسم الشركة")
 
-    # إضافة خيار "صرف عهدة" بجانب "الكل" والشركات
-    companies_options = ["الكل", "صرف عهدة"] + sorted(existing_companies)
-    selected_company = st.sidebar.selectbox("اختر الشركة / العرض:", companies_options)
-    
-    current_year = datetime.now().year
-    current_month = datetime.now().month
-    
-    selected_year = st.sidebar.number_input(
-        "السنة:", min_value=2020, max_value=2035, value=current_year, step=1
-    )
-    
-    selected_month = st.sidebar.selectbox(
-        "الشهر:", 
-        options=list(MONTH_NAMES.keys()), 
-        format_func=lambda x: MONTH_NAMES[x],
-        index=current_month - 1
-    )
-
-    if selected_company == "الكل":
-        st.subheader(f"🏢 جميع الشركات | 📅 سجل شهر: {MONTH_NAMES[selected_month]} {selected_year}")
+    if existing_companies:
+        companies_options = ["الكل"] + sorted(existing_companies)
+        selected_company = st.sidebar.selectbox("اختر الشركة:", companies_options)
         
-        all_months_records = []
-        for comp in existing_companies:
-            comp_df = load_monthly_data(comp, selected_year, selected_month)
-            if not comp_df.empty:
-                comp_df["الشركة"] = comp
-                all_months_records.append(comp_df)
+        current_year = datetime.now().year
+        current_month = datetime.now().month
         
-        if all_months_records:
-            df_all = pd.concat(all_months_records, ignore_index=True)
-            total_all_amount = df_all["المبلغ"].sum()
-            
-            st.write("### 📋 سجل الوارد الشامل لكل الشركات لهذا الشهر")
-            st.dataframe(df_all[["الشركة", "التاريخ", "نوع المعاملة", "المبلغ", "المستلم"]].style.format({"المبلغ": "{:,.2f} جنيه"}), use_container_width=True)
-            st.metric(f"إجمالي الوارد لكل الشركات لشهر {MONTH_NAMES[selected_month]}", f"{total_all_amount:,.2f} جنيه")
-        else:
-            st.info("لا توجد حركات مسجلة لجميع الشركات في هذا الشهر بعد.")
-            
-    elif selected_company == "صرف عهدة":
-        st.subheader(f"👤 سجل عهد الموظفين المنصرفة | 📅 شهر: {MONTH_NAMES[selected_month]} {selected_year}")
+        selected_year = st.sidebar.number_input(
+            "السنة:", min_value=2020, max_value=2035, value=current_year, step=1
+        )
         
-        employees = [
-            d for d in os.listdir(EMPLOYEES_DIR) 
-            if os.path.isdir(os.path.join(EMPLOYEES_DIR, d))
-        ]
-        
-        all_custody_records = []
-        for emp in employees:
-            emp_file = get_employee_month_filepath(emp, selected_year, selected_month)
-            if os.path.exists(emp_file):
-                emp_df = pd.read_csv(emp_file)
-                all_custody_records.append(emp_df)
-        
-        if all_custody_records:
-            df_custody_all = pd.concat(all_custody_records, ignore_index=True)
-            total_custody_amount = df_custody_all["المبلغ المنصرف كعهدة"].sum()
-            
-            st.write("### 📋 جدول موظفي مستلمي العهد لشهر الفلترة المحدد")
-            st.dataframe(df_custody_all.style.format({"المبلغ المنصرف كعهدة": "{:,.2f} جنيه"}), use_container_width=True)
-            st.metric(f"إجمالي العهد المنصرفة لشهر {MONTH_NAMES[selected_month]}", f"{total_custody_amount:,.2f} جنيه")
-        else:
-            st.info(f"لا توجد أي عهد مسجلة للموظفين في شهر {MONTH_NAMES[selected_month]} {selected_year}.")
-            
+        selected_month = st.sidebar.selectbox(
+            "الشهر:", 
+            options=list(MONTH_NAMES.keys()), 
+            format_func=lambda x: MONTH_NAMES[x],
+            index=current_month - 1
+        )
     else:
-        st.subheader(f"🏢 الشركة: {selected_company} | 📅 سجل شهر: {MONTH_NAMES[selected_month]} {selected_year}")
+        selected_company = None
+        st.info("قم بإضافة شركة جديدة من القائمة الجانبية للبدء.")
 
-        df = load_monthly_data(selected_company, selected_year, selected_month)
-
-        # نموذج إضافة حركة جديدة
-        with st.form("payment_form", clear_on_submit=True):
-            st.write("### ➕ تسجيل حركة جديدة (وارد أو صرف عهدة)")
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                date_val = st.date_input("التاريخ", datetime.now().date())
-            with col2:
-                payment_type = st.selectbox("نوع المعاملة", ["وارد كاش", "وارد تحويل", "وارد شيك", "صرف عهدة"])
-                amount_val = st.number_input("المبلغ", min_value=0.0, step=10.0, format="%.2f")
-            with col3:
-                recipient_val = st.text_input("جهة الوارد / اسم الموظف للعهدة")
-
-            submit = st.form_submit_button("حفظ الحركة")
-
-            if submit:
-                if amount_val > 0 and recipient_val.strip():
-                    name_val = recipient_val.strip()
-                    
-                    if payment_type == "صرف عهدة":
-                        add_employee_custody(name_val, date_val, amount_val)
-                        st.success(f"تم صرف مبلغ {amount_val:,.2f} جنيه كعهدة وتوجيهه لحساب الموظف: {name_val} بنجاح (بدون تسجيله في وارد الشركة).")
-                    else:
-                        new_row = {
-                            "التاريخ": date_val,
-                            "نوع المعاملة": payment_type,
-                            "المبلغ": amount_val,
-                            "المستلم": name_val,
-                        }
-                        df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
-                        save_monthly_data(selected_company, selected_year, selected_month, df)
-                        st.success("تم تسجيل الوارد للشركة بنجاح!")
-                    st.rerun()
-                else:
-                    st.error("يرجى إدخال المبلغ والاسم بشكل صحيح.")
-
-        st.write("---")
-        st.write("### 📋 سجل الوارد الحالي للشركة")
-
-        if not df.empty:
-            search_query = st.text_input("🔍 بحث في الوارد:", "").strip()
-
-            if search_query:
-                filtered_df = df[df["المستلم"].str.contains(search_query, case=False, na=False)]
+    if selected_company:
+        if selected_company == "الكل":
+            st.subheader(f"🏢 جميع الشركات | 📅 سجل شهر: {MONTH_NAMES[selected_month]} {selected_year}")
+            
+            all_months_records = []
+            for comp in existing_companies:
+                comp_df = load_monthly_data(comp, selected_year, selected_month)
+                if not comp_df.empty:
+                    comp_df["الشركة"] = comp
+                    all_months_records.append(comp_df)
+            
+            if all_months_records:
+                df_all = pd.concat(all_months_records, ignore_index=True)
+                total_all_amount = df_all["المبلغ"].sum()
+                
+                st.write("### 📋 سجل الوارد الشامل لكل الشركات لهذا الشهر")
+                st.dataframe(df_all[["الشركة", "التاريخ", "نوع المعاملة", "المبلغ", "المستلم"]].style.format({"المبلغ": "{:,.2f} جنيه"}), use_container_width=True)
+                st.metric(f"إجمالي الوارد لكل الشركات لشهر {MONTH_NAMES[selected_month]}", f"{total_all_amount:,.2f} جنيه")
             else:
-                filtered_df = df
+                st.info("لا توجد حركات مسجلة لجميع الشركات في هذا الشهر بعد.")
+                
+        else:
+            st.subheader(f"🏢 الشركة: {selected_company} | 📅 سجل شهر: {MONTH_NAMES[selected_month]} {selected_year}")
 
-            edited_df = st.data_editor(
-                filtered_df,
-                num_rows="dynamic",
-                use_container_width=True,
-                column_config={
-                    "نوع المعاملة": st.column_config.SelectboxColumn(
-                        "نوع المعاملة",
-                        options=["وارد كاش", "وارد تحويل", "وارد شيك"],
-                        required=True,
-                    )
-                },
-            )
+            df = load_monthly_data(selected_company, selected_year, selected_month)
 
-            if "edit_authenticated" not in st.session_state:
-                st.session_state.edit_authenticated = False
+            # نموذج إضافة حركة جديدة
+            with st.form("payment_form", clear_on_submit=True):
+                st.write("### ➕ تسجيل حركة جديدة (وارد أو صرف عهدة)")
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    date_val = st.date_input("التاريخ", datetime.now().date())
+                with col2:
+                    payment_type = st.selectbox("نوع المعاملة", ["وارد كاش", "وارد تحويل", "وارد شيك", "صرف عهدة"])
+                    amount_val = st.number_input("المبلغ", min_value=0.0, step=10.0, format="%.2f")
+                with col3:
+                    recipient_val = st.text_input("جهة الوارد / اسم الموظف للعهدة")
 
-            if not st.session_state.edit_authenticated:
-                edit_pwd = st.text_input("🔒 أدخل كلمة المرور لتفعيل حفظ التعديلات على الجدول:", type="password")
-                if st.button("التحقق من كلمة المرور"):
-                    if edit_pwd == "2320155120":
-                        st.session_state.edit_authenticated = True
-                        st.success("كلمة المرور صحيحة، يمكنك حفظ التعديلات الآن!")
+                submit = st.form_submit_button("حفظ الحركة")
+
+                if submit:
+                    if amount_val > 0 and recipient_val.strip():
+                        name_val = recipient_val.strip()
+                        
+                        if payment_type == "صرف عهدة":
+                            add_employee_custody(name_val, date_val, amount_val)
+                            st.success(f"تم صرف مبلغ {amount_val:,.2f} جنيه كعهدة وتوجيهه لحساب الموظف: {name_val} بنجاح (بدون تسجيله في وارد الشركة).")
+                        else:
+                            new_row = {
+                                "التاريخ": date_val,
+                                "نوع المعاملة": payment_type,
+                                "المبلغ": amount_val,
+                                "المستلم": name_val,
+                            }
+                            df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
+                            save_monthly_data(selected_company, selected_year, selected_month, df)
+                            st.success("تم تسجيل الوارد للشركة بنجاح!")
                         st.rerun()
                     else:
-                        st.error("كلمة المرور الخاصة بالتعديل غير صحيحة!")
-            else:
-                st.info("✅ تم التحقق من كلمة المرور بنجاح. يمكنك حفظ التعديلات.")
-                if st.button("حفظ التعديلات على الجدول"):
-                    if search_query:
-                        df.update(edited_df)
-                    else:
-                        df = edited_df
-                        
-                    save_monthly_data(selected_company, selected_year, selected_month, df)
-                    st.session_state.edit_authenticated = False
-                    st.success("تم حفظ التعديلات بنجاح!")
-                    st.rerun()
+                        st.error("يرجى إدخال المبلغ والاسم بشكل صحيح.")
 
-            total_amount = df["المبلغ"].sum()
-            st.metric(f"إجمالي الوارد لشهر {MONTH_NAMES[selected_month]}", f"{total_amount:,.2f} جنيه")
-        else:
-            st.info("لا توجد حركات وارد مسجلة لهذه الشركة في هذا الشهر بعد.")
+            st.write("---")
+            st.write("### 📋 سجل الوارد الحالي للشركة")
+
+            if not df.empty:
+                search_query = st.text_input("🔍 بحث في الوارد:", "").strip()
+
+                if search_query:
+                    filtered_df = df[df["المستلم"].str.contains(search_query, case=False, na=False)]
+                else:
+                    filtered_df = df
+
+                edited_df = st.data_editor(
+                    filtered_df,
+                    num_rows="dynamic",
+                    use_container_width=True,
+                    column_config={
+                        "نوع المعاملة": st.column_config.SelectboxColumn(
+                            "نوع المعاملة",
+                            options=["وارد كاش", "وارد تحويل", "وارد شيك"],
+                            required=True,
+                        )
+                    },
+                )
+
+                if "edit_authenticated" not in st.session_state:
+                    st.session_state.edit_authenticated = False
+
+                if not st.session_state.edit_authenticated:
+                    edit_pwd = st.text_input("🔒 أدخل كلمة المرور لتفعيل حفظ التعديلات على الجدول:", type="password")
+                    if st.button("التحقق من كلمة المرور"):
+                        if edit_pwd == "2320155120":
+                            st.session_state.edit_authenticated = True
+                            st.success("كلمة المرور صحيحة، يمكنك حفظ التعديلات الآن!")
+                            st.rerun()
+                        else:
+                            st.error("كلمة المرور الخاصة بالتعديل غير صحيحة!")
+                else:
+                    st.info("✅ تم التحقق من كلمة المرور بنجاح. يمكنك حفظ التعديلات.")
+                    if st.button("حفظ التعديلات على الجدول"):
+                        if search_query:
+                            df.update(edited_df)
+                        else:
+                            df = edited_df
+                            
+                        save_monthly_data(selected_company, selected_year, selected_month, df)
+                        st.session_state.edit_authenticated = False
+                        st.success("تم حفظ التعديلات بنجاح!")
+                        st.rerun()
+
+                total_amount = df["المبلغ"].sum()
+                st.metric(f"إجمالي الوارد لشهر {MONTH_NAMES[selected_month]}", f"{total_amount:,.2f} جنيه")
+            else:
+                st.info("لا توجد حركات وارد مسجلة لهذه الشركة في هذا الشهر بعد.")
 
 elif app_mode == "👤 حسابات وعُهد الموظفين":
     st.subheader("👤 تقرير حسابات وعُهد الموظفين")
