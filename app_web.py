@@ -7,26 +7,22 @@ import streamlit as st
 
 st.set_page_config(page_title="نظام تسجيل المصروفات", layout="wide")
 
-# مجلد البيانات الرئيسي
 DATA_DIR = "company_data"
 os.makedirs(DATA_DIR, exist_ok=True)
 
 COLUMNS = ["التاريخ", "نوع المعاملة", "المبلغ", "المستلم"]
 
-# أسماء الأشهر بالعربي
 MONTH_NAMES = {
     1: "يناير (01)", 2: "فبراير (02)", 3: "مارس (03)", 4: "أبريل (04)",
     5: "مايو (05)", 6: "يونيو (06)", 7: "يوليو (07)", 8: "أغسطس (08)",
     9: "سبتمبر (09)", 10: "أكتوبر (10)", 11: "نوفمبر (11)", 12: "ديسمبر (12)"
 }
 
-
 def get_month_filepath(company_name, year, month):
     company_folder = os.path.join(DATA_DIR, company_name)
     os.makedirs(company_folder, exist_ok=True)
     filename = f"{company_name}_{year}_{month:02d}.csv"
     return os.path.join(company_folder, filename)
-
 
 def load_monthly_data(company_name, year, month):
     filepath = get_month_filepath(company_name, year, month)
@@ -45,14 +41,11 @@ def load_monthly_data(company_name, year, month):
             return pd.DataFrame(columns=COLUMNS)
     return pd.DataFrame(columns=COLUMNS)
 
-
 def save_monthly_data(company_name, year, month, df):
     filepath = get_month_filepath(company_name, year, month)
-    # التأكد من تنسيق التواريخ بشكل سليم
     if not df.empty and "التاريخ" in df.columns:
         df["التاريخ"] = df["التاريخ"].astype(str)
     df.to_csv(filepath, index=False, encoding="utf-8-sig")
-
 
 def load_all_data():
     all_records = []
@@ -77,7 +70,6 @@ def load_all_data():
         return full_df
     return pd.DataFrame()
 
-
 def create_backup_zip():
     zip_filename = "company_data_backup.zip"
     with zipfile.ZipFile(zip_filename, 'w', zipfile.ZIP_DEFLATED) as zipf:
@@ -88,14 +80,11 @@ def create_backup_zip():
                 zipf.write(file_path, arcname)
     return zip_filename
 
-
 st.title("📊 نظام إدارة وتسجيل المصروفات")
 
-# القائمة الجانبية
 st.sidebar.header("النمط والقائمة الجانبية")
 app_mode = st.sidebar.radio("اختر الشاشة:", ["إدارة الحركات الشهرية", "📊 الرسم البياني والتحليلات"])
 
-# جلب قائمة الشركات الموجودة (المجلدات)
 existing_companies = [
     d for d in os.listdir(DATA_DIR) 
     if os.path.isdir(os.path.join(DATA_DIR, d))
@@ -104,7 +93,6 @@ existing_companies = [
 if app_mode == "إدارة الحركات الشهرية":
     st.sidebar.header("إدارة الشركات والفترات")
 
-    # إضافة شركة جديدة
     new_company = st.sidebar.text_input("إضافة شركة جديدة:")
     if st.sidebar.button("إضافة الشركة"):
         if new_company.strip():
@@ -144,7 +132,6 @@ if app_mode == "إدارة الحركات الشهرية":
 
         df = load_monthly_data(selected_company, selected_year, selected_month)
 
-        # نموذج إضافة مدفوعات جديدة
         with st.form("payment_form", clear_on_submit=True):
             st.write("### ➕ تسجيل حركة جديدة")
             col1, col2, col3 = st.columns(3)
@@ -201,7 +188,6 @@ if app_mode == "إدارة الحركات الشهرية":
 
             if st.button("حفظ التعديلات على الجدول"):
                 if search_query:
-                    # تحديث الصفوف المعدلة فقط في الجدول الأصلي
                     df.update(edited_df)
                 else:
                     df = edited_df
@@ -242,11 +228,9 @@ elif app_mode == "📊 الرسم البياني والتحليلات":
     else:
         st.info("لا توجد بيانات مسجلة في النظام حتى الآن لعرض الرسم البياني.")
 
-# 📦 قسم النسخ الاحتياطي وإدارة البيانات
 st.sidebar.markdown("---")
 st.sidebar.subheader("💾 النسخ الاحتياطي وإدارة البيانات")
 
-# تنزيل نسخة احتياطية من كل البيانات
 if os.path.exists(DATA_DIR) and len(os.listdir(DATA_DIR)) > 0:
     zip_file = create_backup_zip()
     with open(zip_file, "rb") as fp:
@@ -269,6 +253,5 @@ with st.sidebar.expander("🗑️ مسح كل البيانات"):
         else:
             st.sidebar.error("كلمة المرور غير صحيحة!")
 
-# حقوق التطوير
 st.sidebar.markdown("---")
 st.sidebar.markdown("👨‍💻 **Developed by:** **Mohamed Elsayed**")
