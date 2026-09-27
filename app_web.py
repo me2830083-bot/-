@@ -1,94 +1,120 @@
 import os
-import shutil
 import zipfile
 from datetime import datetime
 import pandas as pd
 import streamlit as st
+from supabase import create_client, Client
 
 st.set_page_config(page_title="نظام تسجيل المصروفات", layout="wide")
 
-DATA_DIR = "company_data"
-os.makedirs(DATA_DIR, exist_ok=True)
+# ==========================================
+# 1. إعداد الاتصال بـ Supabase
+# ==========================================
+SUPABASE_URL = st.secrets["SUPABASE_URL"] if "SUPABASE_URL" in st.secrets else os.getenv("SUPABASE_URL")
+SUPABASE_KEY = st.secrets["SUPABASE_KEY"] if "SUPABASE_KEY" in st.secrets else os.getenv("SUPABASE_KEY")
 
-COLUMNS = ["التاريخ", "نوع المعاملة", "المبلغ", "المستلم"]
+@st.cache_resource
+def init_supabase() -> Client:
+    return create_client(SUPABASE_URL, SUPABASE_KEY)
 
+supabase = init_supabase()
+
+# ==========================================
+# 2. دوال التعامل مع البيانات عبر Supabase
+# ==========================================
+def fetch_companies():
+    """جلب قائمة الشركات المسجلة في الجدول"""
+    try:
+        response = supabase.table("payments").select("company_name").execute()
+        companies = list(set([item["company_name"] for item in response.data if item.get("company_name")]))
+        return sorted(companies)
+    except Exception as e:
+        st.error(f"خطأ في جلب الشركات: {e}")
+        return []
+
+def load_monthly_data(company_name, year, month):
+    """جلب بيانات شركة معينة لشهر وسنة محددين"""
+    try:
+        start_date = f"{year}-{month:02d}-01"
+        if month == 12:
+            end_date = f"{year + 1}-01-01"
+        else:
+            end_date = f"{year}-{month + 1:02d}-01"
+
+        response = (
+            supabase.table("payments")
+            .select("id, date, payment_type, amount, recipient")
+            .eq("company_name", company_name)
+            .gte("date", start_date)
+            .lt("date", end_date)
+            .execute()
+        )
+        
+        data = response.data
+        if data:
+            df = pd.DataFrame(data)
+            df.rename(columns={
+                "date": "التاريخ",
+                "payment_type": "نوع المعاملة",
+                "amount": "المبلغ",
+                "recipient": "المستلم"
+            }, inplace=True)
+            return df
+        return pd.DataFrame(columns=["id", "التاريخ", "نوع المعاملة", "المبلغ", "المستلم"])
+    except Exception as e:
+        st.error(f"خطأ في جلب البيانات: {e}")
+        return pd.DataFrame(columns=["id", "التاريخ", "نوع المعاملة", "المبلغ", "المستلم"])
+
+def insert_payment(company_name, date_val, payment_type, amount, recipient):
+    """إضافة حركة جديدة إلى Supabase"""
+    try:
+        data = {
+            "company_name": company_name,
+            "date": str(date_val),
+            "payment_type": payment_type,
+            "amount": float(amount),
+            "recipient": recipient
+        }
+        supabase.table("payments").insert(data).execute()
+        return True
+    except Exception as e:
+        st.error(f"فشل حفظ الحركة: {e}")
+        return False
+
+def load_all_data():
+    """جلب كل البيانات للتحليلات"""
+    try:
+        response = supabase.table("payments").select("*").execute()
+        if response.data:
+            df = pd.DataFrame(response.data)
+            df.rename(columns={
+                "company_name": "الشركة",
+                "date": "التاريخ",
+                "payment_type": "نوع المعاملة",
+                "amount": "المبلغ",
+                "recipient": "المستلم"
+            }, inplace=True)
+            return df
+        return pd.DataFrame()
+    except Exception as e:
+        st.error(f"خطأ في جلب بيانات التحليلات: {e}")
+        return pd.DataFrame()
+
+# ==========================================
+# 3. الواجهة والتطبيق
+# ==========================================
 MONTH_NAMES = {
     1: "يناير (01)", 2: "فبراير (02)", 3: "مارس (03)", 4: "أبريل (04)",
     5: "مايو (05)", 6: "يونيو (06)", 7: "يوليو (07)", 8: "أغسطس (08)",
     9: "سبتمبر (09)", 10: "أكتوبر (10)", 11: "نوفمبر (11)", 12: "ديسمبر (12)"
 }
 
-def get_month_filepath(company_name, year, month):
-    company_folder = os.path.join(DATA_DIR, company_name)
-    os.makedirs(company_folder, exist_ok=True)
-    filename = f"{company_name}_{year}_{month:02d}.csv"
-    return os.path.join(company_folder, filename)
-
-def load_monthly_data(company_name, year, month):
-    filepath = get_month_filepath(company_name, year, month)
-    if os.path.exists(filepath):
-        try:
-            df = pd.read_csv(filepath)
-            if "التاريخ" in df.columns:
-                df["التاريخ"] = pd.to_datetime(df["التاريخ"]).dt.date
-            if "نوع المعاملة" not in df.columns:
-                df.insert(1, "نوع المعاملة", "كاش")
-            for col in COLUMNS:
-                if col not in df.columns:
-                    df[col] = ""
-            return df[COLUMNS]
-        except Exception:
-            return pd.DataFrame(columns=COLUMNS)
-    return pd.DataFrame(columns=COLUMNS)
-
-def save_monthly_data(company_name, year, month, df):
-    filepath = get_month_filepath(company_name, year, month)
-    if not df.empty and "التاريخ" in df.columns:
-        df["التاريخ"] = df["التاريخ"].astype(str)
-    df.to_csv(filepath, index=False, encoding="utf-8-sig")
-
-def load_all_data():
-    all_records = []
-    if not os.path.exists(DATA_DIR):
-        return pd.DataFrame()
-    for company in os.listdir(DATA_DIR):
-        company_path = os.path.join(DATA_DIR, company)
-        if os.path.isdir(company_path):
-            for file in os.listdir(company_path):
-                if file.endswith(".csv"):
-                    filepath = os.path.join(company_path, file)
-                    try:
-                        df = pd.read_csv(filepath)
-                        df["الشركة"] = company
-                        all_records.append(df)
-                    except Exception:
-                        pass
-    if all_records:
-        full_df = pd.concat(all_records, ignore_index=True)
-        if "المبلغ" in full_df.columns:
-            full_df["المبلغ"] = pd.to_numeric(full_df["المبلغ"], errors="coerce").fillna(0)
-        return full_df
-    return pd.DataFrame()
-
-def create_backup_zip():
-    zip_filename = "company_data_backup.zip"
-    with zipfile.ZipFile(zip_filename, 'w', zipfile.ZIP_DEFLATED) as zipf:
-        for root, dirs, files in os.walk(DATA_DIR):
-            for file in files:
-                file_path = os.path.join(root, file)
-                arcname = os.path.relpath(file_path, start=DATA_DIR)
-                zipf.write(file_path, arcname)
-    return zip_filename
-
 st.title("📊 نظام إدارة وتسجيل المصروفات")
 
 st.sidebar.header("النمط والقائمة الجانبية")
 app_mode = st.sidebar.radio("اختر الشاشة:", ["إدارة الحركات الشهرية", "📊 الرسم البياني والتحليلات"])
 
-existing_companies = [
-    d for d in os.listdir(DATA_DIR) 
-    if os.path.isdir(os.path.join(DATA_DIR, d))
-]
+existing_companies = fetch_companies()
 
 if app_mode == "إدارة الحركات الشهرية":
     st.sidebar.header("إدارة الشركات والفترات")
@@ -97,9 +123,9 @@ if app_mode == "إدارة الحركات الشهرية":
     if st.sidebar.button("إضافة الشركة"):
         if new_company.strip():
             comp_name = new_company.strip()
-            comp_dir = os.path.join(DATA_DIR, comp_name)
-            if not os.path.exists(comp_dir):
-                os.makedirs(comp_dir, exist_ok=True)
+            if comp_name not in existing_companies:
+                # إضافة سجل وهمي مبدئي أو مجرد تحديث القائمة
+                insert_payment(comp_name, datetime.now().date(), "كاش", 0.0, "افتتاحي")
                 st.sidebar.success(f"تمت إضافة شركة {comp_name}")
                 st.rerun()
             else:
@@ -147,16 +173,9 @@ if app_mode == "إدارة الحركات الشهرية":
 
             if submit:
                 if amount_val > 0 and recipient_val.strip():
-                    new_row = {
-                        "التاريخ": date_val,
-                        "نوع المعاملة": payment_type,
-                        "المبلغ": amount_val,
-                        "المستلم": recipient_val.strip(),
-                    }
-                    df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
-                    save_monthly_data(selected_company, selected_year, selected_month, df)
-                    st.success("تم تسجيل الحركة بنجاح!")
-                    st.rerun()
+                    if insert_payment(selected_company, date_val, payment_type, amount_val, recipient_val.strip()):
+                        st.success("تم تسجيل الحركة بنجاح في Supabase!")
+                        st.rerun()
                 else:
                     st.error("يرجى إدخال المبلغ واسم المستلم بشكل صحيح.")
 
@@ -164,38 +183,7 @@ if app_mode == "إدارة الحركات الشهرية":
         st.write("### 📋 سجل المدفوعات الحالي")
 
         if not df.empty:
-            search_query = st.text_input("🔍 بحث باسم المستلم:", "").strip()
-
-            if search_query:
-                filtered_df = df[df["المستلم"].astype(str).str.contains(search_query, case=False, na=False)]
-            else:
-                filtered_df = df
-
-            edited_df = st.data_editor(
-                filtered_df,
-                num_rows="dynamic",
-                use_container_width=True,
-                column_config={
-                    "نوع المعاملة": st.column_config.SelectboxColumn(
-                        "نوع المعاملة",
-                        options=["كاش", "تحويل", "شيك"],
-                        required=True,
-                    ),
-                    "التاريخ": st.column_config.DateColumn("التاريخ", format="YYYY-MM-DD"),
-                    "المبلغ": st.column_config.NumberColumn("المبلغ", format="%.2f")
-                },
-            )
-
-            if st.button("حفظ التعديلات على الجدول"):
-                if search_query:
-                    df.update(edited_df)
-                else:
-                    df = edited_df
-                    
-                save_monthly_data(selected_company, selected_year, selected_month, df)
-                st.success("تم حفظ التعديلات بنجاح!")
-                st.rerun()
-
+            st.dataframe(df[["التاريخ", "نوع المعاملة", "المبلغ", "المستلم"]], use_container_width=True)
             total_amount = pd.to_numeric(df["المبلغ"], errors="coerce").sum()
             st.metric(f"إجمالي مصروفات شهر {MONTH_NAMES[selected_month]}", f"{total_amount:,.2f} جنيه")
         else:
@@ -207,6 +195,7 @@ elif app_mode == "📊 الرسم البياني والتحليلات":
     all_df = load_all_data()
     
     if not all_df.empty and "الشركة" in all_df.columns and "المبلغ" in all_df.columns:
+        all_df["المبلغ"] = pd.to_numeric(all_df["المبلغ"], errors="coerce").fillna(0)
         company_totals = all_df.groupby("الشركة")["المبلغ"].sum().reset_index()
         company_totals = company_totals.sort_values(by="المبلغ", ascending=False)
         
@@ -227,31 +216,6 @@ elif app_mode == "📊 الرسم البياني والتحليلات":
                 st.bar_chart(type_totals.set_index("نوع المعاملة")["المبلغ"])
     else:
         st.info("لا توجد بيانات مسجلة في النظام حتى الآن لعرض الرسم البياني.")
-
-st.sidebar.markdown("---")
-st.sidebar.subheader("💾 النسخ الاحتياطي وإدارة البيانات")
-
-if os.path.exists(DATA_DIR) and len(os.listdir(DATA_DIR)) > 0:
-    zip_file = create_backup_zip()
-    with open(zip_file, "rb") as fp:
-        st.sidebar.download_button(
-            label="📦 تحميل نسخة احتياطية (ZIP)",
-            data=fp,
-            file_name=f"company_data_backup_{datetime.now().strftime('%Y%m%d')}.zip",
-            mime="application/zip"
-        )
-
-with st.sidebar.expander("🗑️ مسح كل البيانات"):
-    pwd_input = st.text_input("أدخل كلمة المرور للمسح:", type="password")
-    if st.button("تأكيد مسح البيانات"):
-        if pwd_input == "2320166120":
-            if os.path.exists(DATA_DIR):
-                shutil.rmtree(DATA_DIR)
-                os.makedirs(DATA_DIR, exist_ok=True)
-                st.sidebar.success("تم مسح جميع البيانات بنجاح!")
-                st.rerun()
-        else:
-            st.sidebar.error("كلمة المرور غير صحيحة!")
 
 st.sidebar.markdown("---")
 st.sidebar.markdown("👨‍💻 **Developed by:** **Mohamed Elsayed**")
