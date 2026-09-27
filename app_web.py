@@ -134,10 +134,11 @@ if app_mode == "إدارة الحركات الشهرية":
             with col1:
                 date_val = st.date_input("التاريخ", datetime.now().date())
             with col2:
-                payment_type = st.selectbox("نوع المعاملة", ["كاش", "تحويل", "شيك"])
+                # تمت إضافة "صرف عهدة" إلى قائمة أنواع المعاملات
+                payment_type = st.selectbox("نوع المعاملة", ["كاش", "تحويل", "شيك", "صرف عهدة"])
                 amount_val = st.number_input("المبلغ", min_value=0.0, step=10.0, format="%.2f")
             with col3:
-                recipient_val = st.text_input("المستلم")
+                recipient_val = st.text_input("المستلم / اسم الموظف")
 
             submit = st.form_submit_button("حفظ الحركة")
 
@@ -160,7 +161,7 @@ if app_mode == "إدارة الحركات الشهرية":
         st.write("### 📋 سجل المدفوعات الحالي")
 
         if not df.empty:
-            search_query = st.text_input("🔍 بحث باسم المستلم:", "").strip()
+            search_query = st.text_input("🔍 بحث باسم المستلم / الموظف:", "").strip()
 
             if search_query:
                 filtered_df = df[df["المستلم"].str.contains(search_query, case=False, na=False)]
@@ -174,7 +175,8 @@ if app_mode == "إدارة الحركات الشهرية":
                 column_config={
                     "نوع المعاملة": st.column_config.SelectboxColumn(
                         "نوع المعاملة",
-                        options=["كاش", "تحويل", "شيك"],
+                        # تحديث الخيارات المتاحة داخل الجدول أيضاً
+                        options=["كاش", "تحويل", "شيك", "صرف عهدة"],
                         required=True,
                     )
                 },
