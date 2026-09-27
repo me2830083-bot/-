@@ -6,7 +6,7 @@ import streamlit as st
 
 # ضبط إعدادات الصفحة وإضافة الأيقونة المميزة (💰)
 st.set_page_config(
-    page_title="نظام تسجيل الوارد",
+    page_title="نظام إدارة وتسجيل الوارد",
     page_icon="💰",
     layout="wide"
 )
@@ -180,15 +180,21 @@ if app_mode == "إدارة الحركات الشهرية":
                 },
             )
 
+            # حقل إدخال كلمة المرور الخاصة بتعديل الدفعات
+            edit_pwd = st.text_input("🔒 أدخل كلمة المرور لحفظ التعديلات على الجدول:", type="password")
+
             if st.button("حفظ التعديلات على الجدول"):
-                if search_query:
-                    df.update(edited_df)
+                if edit_pwd == "2320155120":
+                    if search_query:
+                        df.update(edited_df)
+                    else:
+                        df = edited_df
+                        
+                    save_monthly_data(selected_company, selected_year, selected_month, df)
+                    st.success("تم حفظ التعديلات بنجاح!")
+                    st.rerun()
                 else:
-                    df = edited_df
-                    
-                save_monthly_data(selected_company, selected_year, selected_month, df)
-                st.success("تم حفظ التعديلات بنجاح!")
-                st.rerun()
+                    st.error("كلمة المرور الخاصة بالتعديل غير صحيحة!")
 
             total_amount = df["المبلغ"].sum()
             st.metric(f"إجمالي مصروفات شهر {MONTH_NAMES[selected_month]}", f"{total_amount:,.2f} جنيه")
