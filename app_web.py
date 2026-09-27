@@ -6,7 +6,7 @@ import streamlit as st
 
 # ضبط إعدادات الصفحة وإضافة الأيقونة المميزة (💰)
 st.set_page_config(
-    page_title="نظام تسجيل المصروفات",
+    page_title="نظام اداره وتسجيل وارد الشركات",
     page_icon="💰",
     layout="wide"
 )
