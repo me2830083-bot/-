@@ -1,5 +1,6 @@
 import os
 import shutil
+import zipfile
 from datetime import datetime
 import pandas as pd
 import streamlit as st
@@ -30,17 +31,27 @@ def get_month_filepath(company_name, year, month):
 def load_monthly_data(company_name, year, month):
     filepath = get_month_filepath(company_name, year, month)
     if os.path.exists(filepath):
-        df = pd.read_csv(filepath)
-        df["التاريخ"] = pd.to_datetime(df["التاريخ"]).dt.date
-        if "نوع المعاملة" not in df.columns:
-            df.insert(1, "نوع المعاملة", "كاش")
-        return df[[col for col in COLUMNS if col in df.columns]]
+        try:
+            df = pd.read_csv(filepath)
+            if "التاريخ" in df.columns:
+                df["التاريخ"] = pd.to_datetime(df["التاريخ"]).dt.date
+            if "نوع المعاملة" not in df.columns:
+                df.insert(1, "نوع المعاملة", "كاش")
+            for col in COLUMNS:
+                if col not in df.columns:
+                    df[col] = ""
+            return df[COLUMNS]
+        except Exception:
+            return pd.DataFrame(columns=COLUMNS)
     return pd.DataFrame(columns=COLUMNS)
 
 
 def save_monthly_data(company_name, year, month, df):
     filepath = get_month_filepath(company_name, year, month)
-    df.to_csv(filepath, index=False)
+    # التأكد من تنسيق التواريخ بشكل سليم
+    if not df.empty and "التاريخ" in df.columns:
+        df["التاريخ"] = df["التاريخ"].astype(str)
+    df.to_csv(filepath, index=False, encoding="utf-8-sig")
 
 
 def load_all_data():
@@ -65,6 +76,17 @@ def load_all_data():
             full_df["المبلغ"] = pd.to_numeric(full_df["المبلغ"], errors="coerce").fillna(0)
         return full_df
     return pd.DataFrame()
+
+
+def create_backup_zip():
+    zip_filename = "company_data_backup.zip"
+    with zipfile.ZipFile(zip_filename, 'w', zipfile.ZIP_DEFLATED) as zipf:
+        for root, dirs, files in os.walk(DATA_DIR):
+            for file in files:
+                file_path = os.path.join(root, file)
+                arcname = os.path.relpath(file_path, start=DATA_DIR)
+                zipf.write(file_path, arcname)
+    return zip_filename
 
 
 st.title("📊 نظام إدارة وتسجيل المصروفات")
@@ -158,7 +180,7 @@ if app_mode == "إدارة الحركات الشهرية":
             search_query = st.text_input("🔍 بحث باسم المستلم:", "").strip()
 
             if search_query:
-                filtered_df = df[df["المستلم"].str.contains(search_query, case=False, na=False)]
+                filtered_df = df[df["المستلم"].astype(str).str.contains(search_query, case=False, na=False)]
             else:
                 filtered_df = df
 
@@ -171,12 +193,15 @@ if app_mode == "إدارة الحركات الشهرية":
                         "نوع المعاملة",
                         options=["كاش", "تحويل", "شيك"],
                         required=True,
-                    )
+                    ),
+                    "التاريخ": st.column_config.DateColumn("التاريخ", format="YYYY-MM-DD"),
+                    "المبلغ": st.column_config.NumberColumn("المبلغ", format="%.2f")
                 },
             )
 
             if st.button("حفظ التعديلات على الجدول"):
                 if search_query:
+                    # تحديث الصفوف المعدلة فقط في الجدول الأصلي
                     df.update(edited_df)
                 else:
                     df = edited_df
@@ -185,7 +210,7 @@ if app_mode == "إدارة الحركات الشهرية":
                 st.success("تم حفظ التعديلات بنجاح!")
                 st.rerun()
 
-            total_amount = df["المبلغ"].sum()
+            total_amount = pd.to_numeric(df["المبلغ"], errors="coerce").sum()
             st.metric(f"إجمالي مصروفات شهر {MONTH_NAMES[selected_month]}", f"{total_amount:,.2f} جنيه")
         else:
             st.info("لا توجد حركات مسجلة لهذه الشركة في هذا الشهر بعد.")
@@ -196,7 +221,6 @@ elif app_mode == "📊 الرسم البياني والتحليلات":
     all_df = load_all_data()
     
     if not all_df.empty and "الشركة" in all_df.columns and "المبلغ" in all_df.columns:
-        # رسم بياني لإجمالي الدفعات لكل شركة
         company_totals = all_df.groupby("الشركة")["المبلغ"].sum().reset_index()
         company_totals = company_totals.sort_values(by="المبلغ", ascending=False)
         
@@ -218,9 +242,20 @@ elif app_mode == "📊 الرسم البياني والتحليلات":
     else:
         st.info("لا توجد بيانات مسجلة في النظام حتى الآن لعرض الرسم البياني.")
 
-# قسم مسح البيانات المحمي بكلمة مرور
+# 📦 قسم النسخ الاحتياطي وإدارة البيانات
 st.sidebar.markdown("---")
-st.sidebar.subheader("⚠️ إدارة البيانات")
+st.sidebar.subheader("💾 النسخ الاحتياطي وإدارة البيانات")
+
+# تنزيل نسخة احتياطية من كل البيانات
+if os.path.exists(DATA_DIR) and len(os.listdir(DATA_DIR)) > 0:
+    zip_file = create_backup_zip()
+    with open(zip_file, "rb") as fp:
+        st.sidebar.download_button(
+            label="📦 تحميل نسخة احتياطية (ZIP)",
+            data=fp,
+            file_name=f"company_data_backup_{datetime.now().strftime('%Y%m%d')}.zip",
+            mime="application/zip"
+        )
 
 with st.sidebar.expander("🗑️ مسح كل البيانات"):
     pwd_input = st.text_input("أدخل كلمة المرور للمسح:", type="password")
