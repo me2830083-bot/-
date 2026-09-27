@@ -6,7 +6,7 @@ import streamlit as st
 
 # ضبط إعدادات الصفحة وإضافة الأيقونة المميزة (💰)
 st.set_page_config(
-    page_title="نظام تسجيل المصروفات",
+    page_title="نظام تسجيل الوارد",
     page_icon="💰",
     layout="wide"
 )
@@ -72,7 +72,7 @@ def load_all_data():
     return pd.DataFrame()
 
 
-st.title("💰 نظام إدارة وتسجيل المصروفات")
+st.title("💰 نظام إدارة وتسجيل الوارد")
 
 # القائمة الجانبية
 st.sidebar.header("النمط والقائمة الجانبية")
