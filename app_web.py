@@ -246,18 +246,20 @@ if app_mode == "إدارة الوارد من الشركات":
 elif app_mode == "👤 حسابات وعُهد الموظفين":
     st.subheader("👤 تقرير حسابات وعُهد الموظفين")
     
+    # حساب إجمالي الوارد العام للتحقق من الموازنة
+    all_incoming_df = load_all_data()
+    total_incoming = all_incoming_df["المبلغ"].sum() if not all_incoming_df.empty else 0.0
+
     employees = [
         d for d in os.listdir(EMPLOYEES_DIR) 
         if os.path.isdir(os.path.join(EMPLOYEES_DIR, d))
     ]
     
     if employees:
-        # إضافة خيار "الكل" للقائمة المنسدلة
         options_list = ["الكل"] + sorted(employees)
         selected_employee = st.selectbox("اختر اسم الموظف لاستعراض عهده:", options_list)
         
         if selected_employee == "الكل":
-            # جمع كل عهد جميع الموظفين في جدول واحد
             all_custody_records = []
             for emp in employees:
                 emp_file = get_employee_filepath(emp)
@@ -269,6 +271,10 @@ elif app_mode == "👤 حسابات وعُهد الموظفين":
                 full_custody_df = pd.concat(all_custody_records, ignore_index=True)
                 total_all_custody = full_custody_df["المبلغ المنصرف كعهدة"].sum()
                 
+                # فحص ما إذا كانت العهد أكبر من إجمالي الوارد
+                if total_all_custody > total_incoming:
+                    st.warning(f"⚠️ **تنبيه هام:** إجمالي العهد المنصرفة ({total_all_custody:,.2f} جنيه) أكبر من إجمالي الوارد العام ({total_incoming:,.2f} جنيه)!")
+
                 st.metric("إجمالي كافة العهد المنصرفة لجميع الموظفين", f"{total_all_custody:,.2f} جنيه")
                 st.write("---")
                 st.write("### 📄 دفتر شامل لكل حركات عهد الموظفين:")
@@ -276,7 +282,6 @@ elif app_mode == "👤 حسابات وعُهد الموظفين":
             else:
                 st.info("لا توجد أي سجلات عهد مسجلة حتى الآن.")
         else:
-            # فلترة وعرض عهدة الموظف المحدد فقط
             emp_file = get_employee_filepath(selected_employee)
             if os.path.exists(emp_file):
                 emp_df = pd.read_csv(emp_file)
