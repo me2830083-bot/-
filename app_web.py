@@ -459,4 +459,32 @@ elif app_mode == "📊 الرسم البياني والتحليلات":
             st.dataframe(company_totals.style.format({"المبلغ": "{:,.2f} جنيه"}), use_container_width=True)
             
         with col2:
-            if "نوع المعا
+            if "نوع المعاملة" in all_df.columns:
+                st.write("#### 💳 توزيع الوارد حسب نوع المعاملة")
+                type_totals = all_df.groupby("نوع المعاملة")["المبلغ"].sum().reset_index()
+                st.bar_chart(type_totals.set_index("نوع المعاملة")["المبلغ"])
+    else:
+        st.info("لا توجد بيانات وارد مسجلة في النظام حتى الآن لعرض الرسم البياني.")
+
+# قسم مسح البيانات المحمي بكلمة مرور
+st.sidebar.markdown("---")
+st.sidebar.subheader("⚠️ إدارة البيانات")
+
+with st.sidebar.expander("🗑️ مسح كل البيانات"):
+    pwd_input = st.text_input("أدخل كلمة المرور للمسح:", type="password")
+    if st.button("تأكيد مسح البيانات"):
+        if pwd_input == "2320166120":
+            if os.path.exists(DATA_DIR):
+                shutil.rmtree(DATA_DIR)
+                os.makedirs(DATA_DIR, exist_ok=True)
+            if os.path.exists(EMPLOYEES_DIR):
+                shutil.rmtree(EMPLOYEES_DIR)
+                os.makedirs(EMPLOYEES_DIR, exist_ok=True)
+            st.sidebar.success("تم مسح جميع البيانات بنجاح!")
+            st.rerun()
+        else:
+            st.sidebar.error("كلمة المرور غير صحيحة!")
+
+# حقوق التطوير
+st.sidebar.markdown("---")
+st.sidebar.markdown("👨‍💻 **Developed by:** **Mohamed Elsayed**")
