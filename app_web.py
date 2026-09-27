@@ -280,7 +280,7 @@ elif app_mode == "إدارة الوارد من الشركات":
             total_all_amount = df_all["المبلغ"].sum()
             
             st.write("### 📋 سجل الوارد الشامل لكل الشركات لهذا الشهر")
-            st.dataframe(df_all[["الشركة", "التاريخ", "نوع المعاملة", "المبلغ", "المستلم"]].style.format({"المبلغ": "{:,.2f} جنيه"}), use_container_width=True)
+            st.dataframe(df_all[["الشركة", "التاريخ", "نوع المعاملة", "المبلغ", "المستلم"]], use_container_width=True)
             st.metric(f"إجمالي الوارد لكل الشركات لشهر {MONTH_NAMES[selected_month]}", f"{total_all_amount:,.2f} جنيه")
         else:
             st.info("لا توجد حركات مسجلة لجميع الشركات في هذا الشهر بعد.")
@@ -436,7 +436,7 @@ elif app_mode == "👤 حسابات وعُهد الموظفين":
                 st.metric(f"إجمالي الصرف لجميع الموظفين لشهر {MONTH_NAMES[emp_selected_month]}", f"{total_all_custody:,.2f} جنيه")
                 st.write("---")
                 st.write(f"### 📄 دفتر شامل لكل حركات الصرف للموظفين لشهر {MONTH_NAMES[emp_selected_month]} {emp_selected_year}:")
-                st.dataframe(full_custody_df.style.format({"المبلغ المنصرف كعهدة": "{:,.2f} جنيه"}), use_container_width=True)
+                st.dataframe(full_custody_df, use_container_width=True)
             else:
                 st.info(f"لا توجد أي سجلات صرف مسجلة لشهر {MONTH_NAMES[emp_selected_month]} {emp_selected_year}.")
         else:
@@ -451,4 +451,6 @@ elif app_mode == "👤 حسابات وعُهد الموظفين":
                 
                 st.write("---")
                 st.write(f"### 📄 دفتر أستاذ حركة صرف الموظف: {selected_employee} لشهر {MONTH_NAMES[emp_selected_month]}")
-                st.dataframe(emp_df.style.f
+                st.dataframe(emp_df, use_container_width=True)
+            else:
+                st.info(f"لا توجد سجلات صرف لهذا الموظف في
