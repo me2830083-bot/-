@@ -180,21 +180,32 @@ if app_mode == "إدارة الحركات الشهرية":
                 },
             )
 
-            # حقل إدخال كلمة المرور الخاصة بتعديل الدفعات
-            edit_pwd = st.text_input("🔒 أدخل كلمة المرور لحفظ التعديلات على الجدول:", type="password")
+            # تهيئة حالة الجلسة للتحقق من الصلاحية
+            if "edit_authenticated" not in st.session_state:
+                st.session_state.edit_authenticated = False
 
-            if st.button("حفظ التعديلات على الجدول"):
-                if edit_pwd == "2320155120":
+            if not st.session_state.edit_authenticated:
+                edit_pwd = st.text_input("🔒 أدخل كلمة المرور لتفعيل حفظ التعديلات على الجدول:", type="password")
+                if st.button("التحقق من كلمة المرور"):
+                    if edit_pwd == "2320155120":
+                        st.session_state.edit_authenticated = True
+                        st.success("كلمة المرور صحيحة، يمكنك حفظ التعديلات الآن!")
+                        st.rerun()
+                    else:
+                        st.error("كلمة المرور الخاصة بالتعديل غير صحيحة!")
+            else:
+                st.info("✅ تم التحقق من كلمة المرور بنجاح. يمكنك حفظ التعديلات.")
+                if st.button("حفظ التعديلات على الجدول"):
                     if search_query:
                         df.update(edited_df)
                     else:
                         df = edited_df
                         
                     save_monthly_data(selected_company, selected_year, selected_month, df)
+                    # إعادة ضبط الحالة لإخفاء حقل كلمة المرور مرة أخرى بعد الحفظ
+                    st.session_state.edit_authenticated = False
                     st.success("تم حفظ التعديلات بنجاح!")
                     st.rerun()
-                else:
-                    st.error("كلمة المرور الخاصة بالتعديل غير صحيحة!")
 
             total_amount = df["المبلغ"].sum()
             st.metric(f"إجمالي مصروفات شهر {MONTH_NAMES[selected_month]}", f"{total_amount:,.2f} جنيه")
