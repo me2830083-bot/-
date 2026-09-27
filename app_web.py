@@ -3,11 +3,12 @@ import zipfile
 from datetime import datetime
 import pandas as pd
 import streamlit as st
-from supabase import create_client, Client
 
-st.set_page_config(page_title="نظام تسجيل المصروفات", layout="wide")
-
-# ==========================================
+try:
+    from supabase import create_client, Client
+except ImportError:
+    st.warning("⚠️ جاري إعداد وتثبيت مكتبة Supabase على السيرفر... يرجى الانتظار دقيقة وإعادة تحميل الصفحة (Refresh).")
+    st.stop()
 # 1. إعداد الاتصال بـ Supabase
 # ==========================================
 SUPABASE_URL = st.secrets["SUPABASE_URL"] if "SUPABASE_URL" in st.secrets else os.getenv("SUPABASE_URL")
