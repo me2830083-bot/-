@@ -50,15 +50,19 @@ def save_monthly_data(company_name, year, month, df):
     df.to_csv(filepath, index=False)
 
 
-# دوال خاصة بإدارة حسابات الموظفين (العهد)
-def get_employee_filepath(employee_name):
+# دوال خاصة بإدارة حسابات الموظفين (العهد الشهري)
+def get_employee_month_filepath(employee_name, year, month):
     emp_folder = os.path.join(EMPLOYEES_DIR, employee_name)
     os.makedirs(emp_folder, exist_ok=True)
-    return os.path.join(emp_folder, f"{employee_name}_custody.csv")
+    filename = f"{employee_name}_{year}_{month:02d}_custody.csv"
+    return os.path.join(emp_folder, filename)
 
 
 def add_employee_custody(employee_name, date_val, amount, company_name):
-    filepath = get_employee_filepath(employee_name)
+    year = date_val.year
+    month = date_val.month
+    filepath = get_employee_month_filepath(employee_name, year, month)
+    
     cols = ["التاريخ", "اسم الموظف", "الشركة المصدرة", "المبلغ المنصرف كعهدة"]
     if os.path.exists(filepath):
         df = pd.read_csv(filepath)
@@ -130,7 +134,6 @@ if app_mode == "إدارة الوارد من الشركات":
             st.sidebar.error("يرجى كتابة اسم الشركة")
 
     if existing_companies:
-        # إضافة خيار "الكل" لقائمة الشركات في الجانب
         companies_options = ["الكل"] + sorted(existing_companies)
         selected_company = st.sidebar.selectbox("اختر الشركة:", companies_options)
         
@@ -155,7 +158,6 @@ if app_mode == "إدارة الوارد من الشركات":
         if selected_company == "الكل":
             st.subheader(f"🏢 جميع الشركات | 📅 سجل شهر: {MONTH_NAMES[selected_month]} {selected_year}")
             
-            # تجميع بيانات الشهر المحدد لجميع الشركات
             all_months_records = []
             for comp in existing_companies:
                 comp_df = load_monthly_data(comp, selected_year, selected_month)
@@ -270,6 +272,22 @@ if app_mode == "إدارة الوارد من الشركات":
 elif app_mode == "👤 حسابات وعُهد الموظفين":
     st.subheader("👤 تقرير حسابات وعُهد الموظفين")
     
+    # اختيار السنة والشهر لعرض العهد الخاصة بهما
+    st.sidebar.header("فلترة عهد الموظفين بالفترة")
+    current_year = datetime.now().year
+    current_month = datetime.now().month
+    
+    emp_selected_year = st.sidebar.number_input(
+        "سنة العهد:", min_value=2020, max_value=2035, value=current_year, step=1, key="emp_year"
+    )
+    emp_selected_month = st.sidebar.selectbox(
+        "شهر العهد:", 
+        options=list(MONTH_NAMES.keys()), 
+        format_func=lambda x: MONTH_NAMES[x],
+        index=current_month - 1,
+        key="emp_month"
+    )
+
     all_incoming_df = load_all_data()
     total_incoming = all_incoming_df["المبلغ"].sum() if not all_incoming_df.empty else 0.0
 
@@ -285,7 +303,7 @@ elif app_mode == "👤 حسابات وعُهد الموظفين":
         if selected_employee == "الكل":
             all_custody_records = []
             for emp in employees:
-                emp_file = get_employee_filepath(emp)
+                emp_file = get_employee_month_filepath(emp, emp_selected_year, emp_selected_month)
                 if os.path.exists(emp_file):
                     emp_df = pd.read_csv(emp_file)
                     all_custody_records.append(emp_df)
@@ -297,25 +315,25 @@ elif app_mode == "👤 حسابات وعُهد الموظفين":
                 if total_all_custody > total_incoming:
                     st.warning(f"⚠️ **تنبيه هام:** إجمالي العهد المنصرفة ({total_all_custody:,.2f} جنيه) أكبر من إجمالي الوارد العام ({total_incoming:,.2f} جنيه)!")
 
-                st.metric("إجمالي كافة العهد المنصرفة لجميع الموظفين", f"{total_all_custody:,.2f} جنيه")
+                st.metric(f"إجمالي عهد جميع الموظفين لشهر {MONTH_NAMES[emp_selected_month]}", f"{total_all_custody:,.2f} جنيه")
                 st.write("---")
-                st.write("### 📄 دفتر شامل لكل حركات عهد الموظفين:")
+                st.write(f"### 📄 دفتر شامل لكل حركات عهد الموظفين لشهر {MONTH_NAMES[emp_selected_month]} {emp_selected_year}:")
                 st.dataframe(full_custody_df.style.format({"المبلغ المنصرف كعهدة": "{:,.2f} جنيه"}), use_container_width=True)
             else:
-                st.info("لا توجد أي سجلات عهد مسجلة حتى الآن.")
+                st.info(f"لا توجد أي سجلات عهد مسجلة لشهر {MONTH_NAMES[emp_selected_month]} {emp_selected_year}.")
         else:
-            emp_file = get_employee_filepath(selected_employee)
+            emp_file = get_employee_month_filepath(selected_employee, emp_selected_year, emp_selected_month)
             if os.path.exists(emp_file):
                 emp_df = pd.read_csv(emp_file)
                 
                 total_custody = emp_df["المبلغ المنصرف كعهدة"].sum() if not emp_df.empty else 0
-                st.metric(f"إجمالي العهد المنصرفة للموظف: {selected_employee}", f"{total_custody:,.2f} جنيه")
+                st.metric(f"إجمالي العهد المنصرفة للموظف: {selected_employee} ({MONTH_NAMES[emp_selected_month]})", f"{total_custody:,.2f} جنيه")
                 
                 st.write("---")
-                st.write(f"### 📄 دفتر أستاذ حركة عهد الموظف: {selected_employee}")
+                st.write(f"### 📄 دفتر أستاذ حركة عهد الموظف: {selected_employee} لشهر {MONTH_NAMES[emp_selected_month]}")
                 st.dataframe(emp_df.style.format({"المبلغ المنصرف كعهدة": "{:,.2f} جنيه"}), use_container_width=True)
             else:
-                st.info("لا توجد سجلات عهد لهذا الموظف.")
+                st.info(f"لا توجد سجلات عهد لهذا الموظف في شهر {MONTH_NAMES[emp_selected_month]} {emp_selected_year}.")
     else:
         st.info("لا توجد أي عهد مسجلة للموظفين حتى الآن.")
 
