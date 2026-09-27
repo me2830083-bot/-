@@ -466,4 +466,4 @@ st.sidebar.markdown("---")
 st.sidebar.subheader("⚠️ إدارة البيانات")
 
 with st.sidebar.expander("🗑️ مسح كل البيانات"):
-    pwd_input = st.text_input("أدخل كلمة المرور للمسح:",
+    pwd_input = st.text_input("أدخل كلمة المرور للمسح:",)
