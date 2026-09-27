@@ -157,7 +157,7 @@ with st.sidebar.container():
 
 st.sidebar.markdown("---")
 
-# القائمة الجانبية (بدون "الرسم البياني والتحليلات")
+# القائمة الجانبية
 st.sidebar.header("النمط والقائمة الجانبية")
 app_mode = st.sidebar.radio(
     "اختر الشاشة:", 
@@ -173,7 +173,6 @@ existing_companies = [
 if app_mode == "🏠 الواجهة الرئيسية (لوحة المؤشرات)":
     st.subheader("🏠 الواجهة الرئيسية - لوحة المؤشرات والتحليلات البصرية")
     
-    # 1. تصميم بطاقات KPI احترافية وملونة
     col1, col2, col3 = st.columns(3)
     with col1:
         st.markdown(f"""
@@ -201,9 +200,7 @@ if app_mode == "🏠 الواجهة الرئيسية (لوحة المؤشرات)
         
     st.markdown("---")
     
-    # 2. تنويع الأشكال: عرض مقارنة الشركات بجانب تحليل حركة السيولة
     r1_col1, r1_col2 = st.columns(2)
-    
     with r1_col1:
         st.write("#### 🏢 حصة كل شركة من إجمالي الوارد")
         if not all_incoming_df.empty and "الشركة" in all_incoming_df.columns:
@@ -221,8 +218,6 @@ if app_mode == "🏠 الواجهة الرئيسية (لوحة المؤشرات)
             st.info("لا توجد بيانات وارد مسجلة بعد.")
             
     st.markdown("---")
-    
-    # 3. مقارنة المصروفات والعهد بطريقة مميزة
     st.write("#### 📊 مقارنة تفصيلية لحركات الصرف والعهد حسب نوع المعاملة")
     if not all_custody_df.empty and "نوع المعاملة" in all_custody_df.columns:
         custody_type_totals = all_custody_df.groupby("نوع المعاملة")["المبلغ المنصرف كعهدة"].sum().reset_index()
@@ -233,7 +228,6 @@ if app_mode == "🏠 الواجهة الرئيسية (لوحة المؤشرات)
 elif app_mode == "إدارة الوارد من الشركات":
     st.sidebar.header("إدارة الشركات والفترات")
 
-    # إضافة شركة جديدة
     new_company = st.sidebar.text_input("إضافة شركة جديدة:")
     if st.sidebar.button("إضافة الشركة"):
         if new_company.strip():
@@ -290,7 +284,6 @@ elif app_mode == "إدارة الوارد من الشركات":
 
         df = load_monthly_data(selected_company, selected_year, selected_month)
 
-        # نموذج إضافة حركة جديدة مع خيارات الصرف الجديدة
         with st.form("payment_form", clear_on_submit=True):
             st.write("### ➕ تسجيل حركة جديدة (وارد أو صرف)")
             st.caption(f"💡 **المتبقي في الخزينة:** {treasury_balance:,.2f} جنيه")
@@ -453,4 +446,12 @@ elif app_mode == "👤 حسابات وعُهد الموظفين":
                 st.write(f"### 📄 دفتر أستاذ حركة صرف الموظف: {selected_employee} لشهر {MONTH_NAMES[emp_selected_month]}")
                 st.dataframe(emp_df, use_container_width=True)
             else:
-                st.info(f"لا توجد سجلات صرف لهذا الموظف في
+                st.info(f"لا توجد سجلات صرف لهذا الموظف في شهر {MONTH_NAMES[emp_selected_month]} {emp_selected_year}.")
+    else:
+        st.info("لا توجد أي عمليات صرف مسجلة للموظفين حتى الآن.")
+
+# قسم مسح البيانات المحمي بكلمة مرور
+st.sidebar.markdown("---")
+st.sidebar.subheader("⚠️ إدارة البيانات")
+
+with st.sidebar.expander("🗑️ مسح
