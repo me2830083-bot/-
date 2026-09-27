@@ -59,7 +59,7 @@ def get_employee_filepath(employee_name):
 
 def add_employee_custody(employee_name, date_val, amount, company_name):
     filepath = get_employee_filepath(employee_name)
-    cols = ["التاريخ", "الشركة المصدرة", "المبلغ المنصرف كعهدة"]
+    cols = ["التاريخ", "اسم الموظف", "الشركة المصدرة", "المبلغ المنصرف كعهدة"]
     if os.path.exists(filepath):
         df = pd.read_csv(filepath)
     else:
@@ -67,6 +67,7 @@ def add_employee_custody(employee_name, date_val, amount, company_name):
     
     new_row = {
         "التاريخ": date_val,
+        "اسم الموظف": employee_name,
         "الشركة المصدرة": company_name,
         "المبلغ المنصرف كعهدة": amount
     }
@@ -160,7 +161,6 @@ if app_mode == "إدارة الوارد من الشركات":
             with col1:
                 date_val = st.date_input("التاريخ", datetime.now().date())
             with col2:
-                # خيارات المعاملة
                 payment_type = st.selectbox("نوع المعاملة", ["وارد كاش", "وارد تحويل", "وارد شيك", "صرف عهدة"])
                 amount_val = st.number_input("المبلغ", min_value=0.0, step=10.0, format="%.2f")
             with col3:
@@ -172,12 +172,10 @@ if app_mode == "إدارة الوارد من الشركات":
                 if amount_val > 0 and recipient_val.strip():
                     name_val = recipient_val.strip()
                     
-                    # إذا كانت الحركة "صرف عهدة"، توجه مباشرة لحساب الموظف ولا تضاف لسجل الوارد للشركات
                     if payment_type == "صرف عهدة":
                         add_employee_custody(name_val, date_val, amount_val, selected_company)
                         st.success(f"تم صرف مبلغ {amount_val:,.2f} جنيه كعهدة وتوجيهه لحساب الموظف: {name_val} بنجاح (بدون تسجيله في وارد الشركة).")
                     else:
-                        # إذا كانت حركة وارد عادية، يتم إضافتها لسجل الشركة
                         new_row = {
                             "التاريخ": date_val,
                             "نوع المعاملة": payment_type,
@@ -215,7 +213,6 @@ if app_mode == "إدارة الوارد من الشركات":
                 },
             )
 
-            # تهيئة حالة الجلسة للتحقق من الصلاحية
             if "edit_authenticated" not in st.session_state:
                 st.session_state.edit_authenticated = False
 
@@ -255,20 +252,43 @@ elif app_mode == "👤 حسابات وعُهد الموظفين":
     ]
     
     if employees:
-        selected_employee = st.selectbox("اختر اسم الموظف لاستعراض عهده:", sorted(employees))
-        emp_file = get_employee_filepath(selected_employee)
+        # إضافة خيار "الكل" للقائمة المنسدلة
+        options_list = ["الكل"] + sorted(employees)
+        selected_employee = st.selectbox("اختر اسم الموظف لاستعراض عهده:", options_list)
         
-        if os.path.exists(emp_file):
-            emp_df = pd.read_csv(emp_file)
+        if selected_employee == "الكل":
+            # جمع كل عهد جميع الموظفين في جدول واحد
+            all_custody_records = []
+            for emp in employees:
+                emp_file = get_employee_filepath(emp)
+                if os.path.exists(emp_file):
+                    emp_df = pd.read_csv(emp_file)
+                    all_custody_records.append(emp_df)
             
-            total_custody = emp_df["المبلغ المنصرف كعهدة"].sum() if not emp_df.empty else 0
-            st.metric(f"إجمالي العهد المنصرفة للموظف: {selected_employee}", f"{total_custody:,.2f} جنيه")
-            
-            st.write("---")
-            st.write("### 📄 دفتر حركات العهد:")
-            st.dataframe(emp_df.style.format({"المبلغ المنصرف كعهدة": "{:,.2f} جنيه"}), use_container_width=True)
+            if all_custody_records:
+                full_custody_df = pd.concat(all_custody_records, ignore_index=True)
+                total_all_custody = full_custody_df["المبلغ المنصرف كعهدة"].sum()
+                
+                st.metric("إجمالي كافة العهد المنصرفة لجميع الموظفين", f"{total_all_custody:,.2f} جنيه")
+                st.write("---")
+                st.write("### 📄 دفتر شامل لكل حركات عهد الموظفين:")
+                st.dataframe(full_custody_df.style.format({"المبلغ المنصرف كعهدة": "{:,.2f} جنيه"}), use_container_width=True)
+            else:
+                st.info("لا توجد أي سجلات عهد مسجلة حتى الآن.")
         else:
-            st.info("لا توجد سجلات عهد لهذا الموظف.")
+            # فلترة وعرض عهدة الموظف المحدد فقط
+            emp_file = get_employee_filepath(selected_employee)
+            if os.path.exists(emp_file):
+                emp_df = pd.read_csv(emp_file)
+                
+                total_custody = emp_df["المبلغ المنصرف كعهدة"].sum() if not emp_df.empty else 0
+                st.metric(f"إجمالي العهد المنصرفة للموظف: {selected_employee}", f"{total_custody:,.2f} جنيه")
+                
+                st.write("---")
+                st.write(f"### 📄 دفتر أستاذ حركة عهد الموظف: {selected_employee}")
+                st.dataframe(emp_df.style.format({"المبلغ المنصرف كعهدة": "{:,.2f} جنيه"}), use_container_width=True)
+            else:
+                st.info("لا توجد سجلات عهد لهذا الموظف.")
     else:
         st.info("لا توجد أي عهد مسجلة للموظفين حتى الآن.")
 
