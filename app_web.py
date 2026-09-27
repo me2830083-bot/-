@@ -6,14 +6,16 @@ import streamlit as st
 
 # ضبط إعدادات الصفحة وإضافة الأيقونة المميزة (💰)
 st.set_page_config(
-    page_title="نظام إدارة وتسجيل الوارد",
+    page_title="نظام إدارة وتسجيل الوارد والعهد",
     page_icon="💰",
     layout="wide"
 )
 
-# مجلد البيانات الرئيسي
+# مجلدات البيانات الرئيسية
 DATA_DIR = "company_data"
+EMPLOYEES_DIR = "employees_data"  # مجلد خاص بحسابات العُهد للموظفين
 os.makedirs(DATA_DIR, exist_ok=True)
+os.makedirs(EMPLOYEES_DIR, exist_ok=True)
 
 COLUMNS = ["التاريخ", "نوع المعاملة", "المبلغ", "المستلم"]
 
@@ -48,6 +50,30 @@ def save_monthly_data(company_name, year, month, df):
     df.to_csv(filepath, index=False)
 
 
+# دوال خاصة بإدارة حسابات الموظفين (العهد)
+def get_employee_filepath(employee_name):
+    emp_folder = os.path.join(EMPLOYEES_DIR, employee_name)
+    os.makedirs(emp_folder, exist_ok=True)
+    return os.path.join(emp_folder, f"{employee_name}_custody.csv")
+
+
+def add_employee_custody(employee_name, date_val, amount, company_name):
+    filepath = get_employee_filepath(employee_name)
+    cols = ["التاريخ", "الشركة", "المبلغ المنصرف"]
+    if os.path.exists(filepath):
+        df = pd.read_csv(filepath)
+    else:
+        df = pd.DataFrame(columns=cols)
+    
+    new_row = {
+        "التاريخ": date_val,
+        "الشركة": company_name,
+        "المبلغ المنصرف": amount
+    }
+    df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
+    df.to_csv(filepath, index=False)
+
+
 def load_all_data():
     all_records = []
     if not os.path.exists(DATA_DIR):
@@ -72,13 +98,13 @@ def load_all_data():
     return pd.DataFrame()
 
 
-st.title("💰 نظام إدارة وتسجيل الوارد")
+st.title("💰 نظام إدارة وتسجيل الوارد والعهد")
 
 # القائمة الجانبية
 st.sidebar.header("النمط والقائمة الجانبية")
-app_mode = st.sidebar.radio("اختر الشاشة:", ["إدارة الحركات الشهرية", "📊 الرسم البياني والتحليلات"])
+app_mode = st.sidebar.radio("اختر الشاشة:", ["إدارة الحركات الشهرية", "👤 حسابات وعُهد الموظفين", "📊 الرسم البياني والتحليلات"])
 
-# جلب قائمة الشركات الموجودة (المجلدات)
+# جلب قائمة الشركات الموجودة
 existing_companies = [
     d for d in os.listdir(DATA_DIR) 
     if os.path.isdir(os.path.join(DATA_DIR, d))
@@ -134,7 +160,6 @@ if app_mode == "إدارة الحركات الشهرية":
             with col1:
                 date_val = st.date_input("التاريخ", datetime.now().date())
             with col2:
-                # تمت إضافة "صرف عهدة" إلى قائمة أنواع المعاملات
                 payment_type = st.selectbox("نوع المعاملة", ["كاش", "تحويل", "شيك", "صرف عهدة"])
                 amount_val = st.number_input("المبلغ", min_value=0.0, step=10.0, format="%.2f")
             with col3:
@@ -144,15 +169,22 @@ if app_mode == "إدارة الحركات الشهرية":
 
             if submit:
                 if amount_val > 0 and recipient_val.strip():
+                    emp_name = recipient_val.strip()
                     new_row = {
                         "التاريخ": date_val,
                         "نوع المعاملة": payment_type,
                         "المبلغ": amount_val,
-                        "المستلم": recipient_val.strip(),
+                        "المستلم": emp_name,
                     }
                     df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
                     save_monthly_data(selected_company, selected_year, selected_month, df)
-                    st.success("تم تسجيل الحركة بنجاح!")
+                    
+                    # إذا كانت نوع المعاملة "صرف عهدة"، يتم توجيه المبلغ تلقائياً لحساب الموظف المختص
+                    if payment_type == "صرف عهدة":
+                        add_employee_custody(emp_name, date_val, amount_val, selected_company)
+                        st.success(f"تم تسجيل الحركة وتوجيه مبلغ {amount_val} جنيه كعهد لحساب الموظف: {emp_name} بنجاح!")
+                    else:
+                        st.success("تم تسجيل الحركة بنجاح!")
                     st.rerun()
                 else:
                     st.error("يرجى إدخال المبلغ واسم المستلم بشكل صحيح.")
@@ -175,7 +207,6 @@ if app_mode == "إدارة الحركات الشهرية":
                 column_config={
                     "نوع المعاملة": st.column_config.SelectboxColumn(
                         "نوع المعاملة",
-                        # تحديث الخيارات المتاحة داخل الجدول أيضاً
                         options=["كاش", "تحويل", "شيك", "صرف عهدة"],
                         required=True,
                     )
@@ -204,7 +235,6 @@ if app_mode == "إدارة الحركات الشهرية":
                         df = edited_df
                         
                     save_monthly_data(selected_company, selected_year, selected_month, df)
-                    # إعادة ضبط الحالة لإخفاء حقل كلمة المرور مرة أخرى بعد الحفظ
                     st.session_state.edit_authenticated = False
                     st.success("تم حفظ التعديلات بنجاح!")
                     st.rerun()
@@ -214,13 +244,39 @@ if app_mode == "إدارة الحركات الشهرية":
         else:
             st.info("لا توجد حركات مسجلة لهذه الشركة في هذا الشهر بعد.")
 
+elif app_mode == "👤 حسابات وعُهد الموظفين":
+    st.subheader("👤 تقرير حسابات وعُهد الموظفين")
+    
+    # جلب أسماء الموظفين الذين لديهم مجلدات عهد
+    employees = [
+        d for d in os.listdir(EMPLOYEES_DIR) 
+        if os.path.isdir(os.path.join(EMPLOYEES_DIR, d))
+    ]
+    
+    if employees:
+        selected_employee = st.selectbox("اختر اسم الموظف لاستعراض حسابه:", sorted(employees))
+        emp_file = get_employee_filepath(selected_employee)
+        
+        if os.path.exists(emp_file):
+            emp_df = pd.read_csv(emp_file)
+            
+            total_custody = emp_df["المبلغ المنصرف"].sum() if not emp_df.empty else 0
+            st.metric(f"إجمالي العهد المسجلة للموظف: {selected_employee}", f"{total_custody:,.2f} جنيه")
+            
+            st.write("---")
+            st.write("### 📄 دفتر أستاذ حركة العهد للموظف:")
+            st.dataframe(emp_df.style.format({"المبلغ المنصرف": "{:,.2f} جنيه"}), use_container_width=True)
+        else:
+            st.info("لا توجد سجلات عهد لهذا الموظف.")
+    else:
+        st.info("لا توجد أي عهد مسجلة للموظفين حتى الآن (قم باختيار نوع المعاملة 'صرف عهدة' عند تسجيل حركة جديدة لإضافة موظف تلقائياً).")
+
 elif app_mode == "📊 الرسم البياني والتحليلات":
     st.subheader("📈 إحصائيات وإجمالي المدفوعات للشركات")
     
     all_df = load_all_data()
     
     if not all_df.empty and "الشركة" in all_df.columns and "المبلغ" in all_df.columns:
-        # رسم بياني لإجمالي الدفعات لكل شركة
         company_totals = all_df.groupby("الشركة")["المبلغ"].sum().reset_index()
         company_totals = company_totals.sort_values(by="المبلغ", ascending=False)
         
@@ -253,8 +309,11 @@ with st.sidebar.expander("🗑️ مسح كل البيانات"):
             if os.path.exists(DATA_DIR):
                 shutil.rmtree(DATA_DIR)
                 os.makedirs(DATA_DIR, exist_ok=True)
-                st.sidebar.success("تم مسح جميع البيانات بنجاح!")
-                st.rerun()
+            if os.path.exists(EMPLOYEES_DIR):
+                shutil.rmtree(EMPLOYEES_DIR)
+                os.makedirs(EMPLOYEES_DIR, exist_ok=True)
+            st.sidebar.success("تم مسح جميع البيانات بنجاح!")
+            st.rerun()
         else:
             st.sidebar.error("كلمة المرور غير صحيحة!")
 
