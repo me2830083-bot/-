@@ -67,7 +67,7 @@ def add_employee_custody(employee_name, date_val, payment_type, amount):
     if os.path.exists(filepath):
         df = pd.read_csv(filepath)
         if "نوع المعاملة" not in df.columns:
-            df.insert(1, "نوع المعاملة", "صرف عهده كاش")
+            df.insert(1, "نوع المعاملة", "صرف تحويل")
     else:
         df = pd.DataFrame(columns=cols)
     
@@ -118,7 +118,7 @@ def load_all_custody_data():
                     try:
                         df = pd.read_csv(filepath)
                         if "نوع المعاملة" not in df.columns:
-                            df.insert(1, "نوع المعاملة", "صرف عهده كاش")
+                            df.insert(1, "نوع المعاملة", "صرف تحويل")
                         all_records.append(df)
                     except Exception:
                         pass
@@ -179,7 +179,6 @@ if app_mode == "إدارة الوارد من الشركات":
         else:
             st.sidebar.error("يرجى كتابة اسم الشركة")
 
-    # تم حذف خيار "صرف عهدة" من هنا تماماً بناءً على طلبك
     companies_options = ["الكل"] + sorted(existing_companies)
     selected_company = st.sidebar.selectbox("اختر الشركة / العرض:", companies_options)
     
@@ -222,9 +221,9 @@ if app_mode == "إدارة الوارد من الشركات":
 
         df = load_monthly_data(selected_company, selected_year, selected_month)
 
-        # نموذج إضافة حركة جديدة مع خيارات صرف العهد المحددة
+        # نموذج إضافة حركة جديدة مع خيارات الصرف الجديدة (صرف كاش، صرف تحويل، صرف شيك)
         with st.form("payment_form", clear_on_submit=True):
-            st.write("### ➕ تسجيل حركة جديدة (وارد أو صرف عهدة)")
+            st.write("### ➕ تسجيل حركة جديدة (وارد أو صرف)")
             st.caption(f"💡 **المتبقي في الخزينة:** {treasury_balance:,.2f} جنيه")
 
             col1, col2, col3 = st.columns(3)
@@ -233,11 +232,11 @@ if app_mode == "إدارة الوارد من الشركات":
             with col2:
                 payment_type = st.selectbox(
                     "نوع المعاملة", 
-                    ["وارد كاش", "وارد تحويل", "وارد شيك", "صرف عهده كاش", "صرف عهده تحويل", "صرف عهده شيك"]
+                    ["وارد كاش", "وارد تحويل", "وارد شيك", "صرف كاش", "صرف تحويل", "صرف شيك"]
                 )
                 amount_val = st.number_input("المبلغ", min_value=0.0, step=10.0, format="%.2f")
             with col3:
-                recipient_val = st.text_input("جهة الوارد / اسم الموظف للعهدة")
+                recipient_val = st.text_input("جهة الوارد / اسم الموظف للصرف")
 
             submit = st.form_submit_button("حفظ الحركة")
 
@@ -245,14 +244,14 @@ if app_mode == "إدارة الوارد من الشركات":
                 if amount_val > 0 and recipient_val.strip():
                     name_val = recipient_val.strip()
                     
-                    # التحقق إذا كانت المعاملة تبدأ بعبارة صرف عهده
-                    if payment_type.startswith("صرف عهده"):
+                    # التحقق إذا كانت المعاملة تبدأ بكلمة صرف
+                    if payment_type.startswith("صرف"):
                         if amount_val > treasury_balance:
                             st.error(f"⚠️ تنبيه: المبلغ المطلوب ({amount_val:,.2f} جنيه) أكبر من المتبقي في الخزينة ({treasury_balance:,.2f} جنيه)!")
                         else:
                             add_employee_custody(name_val, date_val, payment_type, amount_val)
                             new_treasury = treasury_balance - amount_val
-                            st.success(f"تم صرف مبلغ {amount_val:,.2f} جنيه ({payment_type}) للموظف: {name_val} بنجاح. | المتبقي في الخزينة: {new_treasury:,.2f} جنيه")
+                            st.success(f"تم تنفيذ مبلغ {amount_val:,.2f} جنيه ({payment_type}) للمستفيد: {name_val} بنجاح. | المتبقي في الخزينة: {new_treasury:,.2f} جنيه")
                             st.rerun()
                     else:
                         new_row = {
@@ -356,7 +355,7 @@ elif app_mode == "👤 حسابات وعُهد الموظفين":
                 if os.path.exists(emp_file):
                     emp_df = pd.read_csv(emp_file)
                     if "نوع المعاملة" not in emp_df.columns:
-                        emp_df.insert(1, "نوع المعاملة", "صرف عهده كاش")
+                        emp_df.insert(1, "نوع المعاملة", "صرف تحويل")
                     all_custody_records.append(emp_df)
             
             if all_custody_records:
@@ -364,31 +363,31 @@ elif app_mode == "👤 حسابات وعُهد الموظفين":
                 total_all_custody = full_custody_df["المبلغ المنصرف كعهدة"].sum()
                 
                 if total_all_custody > total_incoming_treasury:
-                    st.warning(f"⚠️ **تنبيه هام:** إجمالي العهد المنصرفة ({total_all_custody:,.2f} جنيه) أكبر من إجمالي الوارد العام ({total_incoming_treasury:,.2f} جنيه)!")
+                    st.warning(f"⚠️ **تنبيه هام:** إجمالي الصرف ({total_all_custody:,.2f} جنيه) أكبر من إجمالي الوارد العام ({total_incoming_treasury:,.2f} جنيه)!")
 
-                st.metric(f"إجمالي عهد جميع الموظفين لشهر {MONTH_NAMES[emp_selected_month]}", f"{total_all_custody:,.2f} جنيه")
+                st.metric(f"إجمالي الصرف لجميع الموظفين لشهر {MONTH_NAMES[emp_selected_month]}", f"{total_all_custody:,.2f} جنيه")
                 st.write("---")
-                st.write(f"### 📄 دفتر شامل لكل حركات عهد الموظفين لشهر {MONTH_NAMES[emp_selected_month]} {emp_selected_year}:")
+                st.write(f"### 📄 دفتر شامل لكل حركات الصرف للموظفين لشهر {MONTH_NAMES[emp_selected_month]} {emp_selected_year}:")
                 st.dataframe(full_custody_df.style.format({"المبلغ المنصرف كعهدة": "{:,.2f} جنيه"}), use_container_width=True)
             else:
-                st.info(f"لا توجد أي سجلات عهد مسجلة لشهر {MONTH_NAMES[emp_selected_month]} {emp_selected_year}.")
+                st.info(f"لا توجد أي سجلات صرف مسجلة لشهر {MONTH_NAMES[emp_selected_month]} {emp_selected_year}.")
         else:
             emp_file = get_employee_month_filepath(selected_employee, emp_selected_year, emp_selected_month)
             if os.path.exists(emp_file):
                 emp_df = pd.read_csv(emp_file)
                 if "نوع المعاملة" not in emp_df.columns:
-                    emp_df.insert(1, "نوع المعاملة", "صرف عهده كاش")
+                    emp_df.insert(1, "نوع المعاملة", "صرف تحويل")
                 
                 total_custody = emp_df["المبلغ المنصرف كعهدة"].sum() if not emp_df.empty else 0
-                st.metric(f"إجمالي العهد المنصرفة للموظف: {selected_employee} ({MONTH_NAMES[emp_selected_month]})", f"{total_custody:,.2f} جنيه")
+                st.metric(f"إجمالي الصرف للموظف: {selected_employee} ({MONTH_NAMES[emp_selected_month]})", f"{total_custody:,.2f} جنيه")
                 
                 st.write("---")
-                st.write(f"### 📄 دفتر أستاذ حركة عهد الموظف: {selected_employee} لشهر {MONTH_NAMES[emp_selected_month]}")
+                st.write(f"### 📄 دفتر أستاذ حركة صرف الموظف: {selected_employee} لشهر {MONTH_NAMES[emp_selected_month]}")
                 st.dataframe(emp_df.style.format({"المبلغ المنصرف كعهدة": "{:,.2f} جنيه"}), use_container_width=True)
             else:
-                st.info(f"لا توجد سجلات عهد لهذا الموظف في شهر {MONTH_NAMES[emp_selected_month]} {emp_selected_year}.")
+                st.info(f"لا توجد سجلات صرف لهذا الموظف في شهر {MONTH_NAMES[emp_selected_month]} {emp_selected_year}.")
     else:
-        st.info("لا توجد أي عهد مسجلة للموظفين حتى الآن.")
+        st.info("لا توجد أي عمليات صرف مسجلة للموظفين حتى الآن.")
 
 elif app_mode == "📊 الرسم البياني والتحليلات":
     st.subheader("📈 إحصائيات وإجمالي الوارد للشركات")
