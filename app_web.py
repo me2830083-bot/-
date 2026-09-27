@@ -141,14 +141,20 @@ treasury_balance = total_incoming_treasury - total_custody_treasury
 
 st.title("💰 نظام إدارة الوارد وعُهد الموظفين")
 
-# عرض ملخص الخزينة بشكل مصغر وأنيق في الشريط الجانبي
+# عرض ملخص الخزينة بشكل احترافي ومنسق في الشريط الجانبي
 st.sidebar.markdown("---")
-st.sidebar.markdown("### 🏦 ملخص الخزينة")
-st.sidebar.markdown(f"""
-- **الوارد:** `{total_incoming_treasury:,.2f}` ج
-- **العهد:** `{total_custody_treasury:,.2f}` ج
-- **المتبقي:** **`{treasury_balance:,.2f}` ج**
-""")
+st.sidebar.markdown("### 🏦 **ملخص حركة الخزينة**")
+
+with st.sidebar.container():
+    st.markdown(f"""
+    <div style='background-color: #1e2530; padding: 12px; border-radius: 8px; border: 1px solid #2f3742;'>
+        <p style='margin: 4px 0; color: #a3bffa; font-size: 14px;'>📥 <b>إجمالي الوارد:</b> <span style='float: left; color: #ffffff;'>{total_incoming_treasury:,.2f} ج</span></p>
+        <p style='margin: 4px 0; color: #f6ad55; font-size: 14px;'>📤 <b>إجمالي العهد:</b> <span style='float: left; color: #ffffff;'>{total_custody_treasury:,.2f} ج</span></p>
+        <hr style='margin: 8px 0; border-color: #2f3742;'>
+        <p style='margin: 4px 0; color: #68d391; font-size: 15px;'>💰 <b>الرصيد المتبقي:</b><br><span style='font-size: 18px; font-weight: bold; color: #68d391;'>{treasury_balance:,.2f} جنيه</span></p>
+    </div>
+    """, unsafe_allow_html=True)
+
 st.sidebar.markdown("---")
 
 # القائمة الجانبية مع إضافة "الواجهة الرئيسية" في المقدمة
@@ -266,7 +272,7 @@ elif app_mode == "إدارة الوارد من الشركات":
 
         df = load_monthly_data(selected_company, selected_year, selected_month)
 
-        # نموذج إضافة حركة جديدة مع خيارات الصرف الجديدة (صرف كاش، صرف تحويل، صرف شيك)
+        # نموذج إضافة حركة جديدة مع خيارات الصرف الجديدة
         with st.form("payment_form", clear_on_submit=True):
             st.write("### ➕ تسجيل حركة جديدة (وارد أو صرف)")
             st.caption(f"💡 **المتبقي في الخزينة:** {treasury_balance:,.2f} جنيه")
@@ -289,7 +295,6 @@ elif app_mode == "إدارة الوارد من الشركات":
                 if amount_val > 0 and recipient_val.strip():
                     name_val = recipient_val.strip()
                     
-                    # التحقق إذا كانت المعاملة تبدأ بكلمة صرف
                     if payment_type.startswith("صرف"):
                         if amount_val > treasury_balance:
                             st.error(f"⚠️ تنبيه: المبلغ المطلوب ({amount_val:,.2f} جنيه) أكبر من المتبقي في الخزينة ({treasury_balance:,.2f} جنيه)!")
@@ -454,16 +459,4 @@ elif app_mode == "📊 الرسم البياني والتحليلات":
             st.dataframe(company_totals.style.format({"المبلغ": "{:,.2f} جنيه"}), use_container_width=True)
             
         with col2:
-            if "نوع المعاملة" in all_df.columns:
-                st.write("#### 💳 توزيع الوارد حسب نوع المعاملة")
-                type_totals = all_df.groupby("نوع المعاملة")["المبلغ"].sum().reset_index()
-                st.bar_chart(type_totals.set_index("نوع المعاملة")["المبلغ"])
-    else:
-        st.info("لا توجد بيانات وارد مسجلة في النظام حتى الآن لعرض الرسم البياني.")
-
-# قسم مسح البيانات المحمي بكلمة مرور
-st.sidebar.markdown("---")
-st.sidebar.subheader("⚠️ إدارة البيانات")
-
-with st.sidebar.expander("🗑️ مسح كل البيانات"):
-    pwd_input = st.text_input("أدخل كلمة المرور للمسح:",)
+            if "نوع المعا
