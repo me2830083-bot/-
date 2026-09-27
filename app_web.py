@@ -157,11 +157,11 @@ with st.sidebar.container():
 
 st.sidebar.markdown("---")
 
-# القائمة الجانبية مع إضافة "الواجهة الرئيسية" في المقدمة
+# القائمة الجانبية (تم حذف "الرسم البياني والتحليلات")
 st.sidebar.header("النمط والقائمة الجانبية")
 app_mode = st.sidebar.radio(
     "اختر الشاشة:", 
-    ["🏠 الواجهة الرئيسية (لوحة المؤشرات)", "إدارة الوارد من الشركات", "👤 حسابات وعُهد الموظفين", "📊 الرسم البياني والتحليلات"]
+    ["🏠 الواجهة الرئيسية (لوحة المؤشرات)", "إدارة الوارد من الشركات", "👤 حسابات وعُهد الموظفين"]
 )
 
 # جلب قائمة الشركات الموجودة
@@ -201,14 +201,13 @@ if app_mode == "🏠 الواجهة الرئيسية (لوحة المؤشرات)
         
     st.markdown("---")
     
-    # 2. تنويع الأشكال: عرض مقارنة الشركات (أعمدة) بجانب توزيع الوارد (مخطط مساحي / خطي)
+    # 2. تنويع الأشكال: عرض مقارنة الشركات بجانب تحليل حركة السيولة
     r1_col1, r1_col2 = st.columns(2)
     
     with r1_col1:
         st.write("#### 🏢 حصة كل شركة من إجمالي الوارد")
         if not all_incoming_df.empty and "الشركة" in all_incoming_df.columns:
             company_totals = all_incoming_df.groupby("الشركة")["المبلغ"].sum().reset_index()
-            # عرض مخطط أعمدة تنافسي
             st.bar_chart(company_totals.set_index("الشركة")["المبلغ"])
         else:
             st.info("لا توجد بيانات شركات مسجلة بعد.")
@@ -217,14 +216,13 @@ if app_mode == "🏠 الواجهة الرئيسية (لوحة المؤشرات)
         st.write("#### 💳 تحليل حركة السيولة حسب (نوع المعاملة)")
         if not all_incoming_df.empty and "نوع المعاملة" in all_incoming_df.columns:
             incoming_type_totals = all_incoming_df.groupby("نوع المعاملة")["المبلغ"].sum().reset_index()
-            # استخدام مخطط خطي متغير (Line Chart) للتنويع البصري
             st.line_chart(incoming_type_totals.set_index("نوع المعاملة")["المبلغ"])
         else:
             st.info("لا توجد بيانات وارد مسجلة بعد.")
             
     st.markdown("---")
     
-    # 3. قسم خاص بمقارنة المصروفات والعهد بطريقة مميزة
+    # 3. مقارنة المصروفات والعهد بطريقة مميزة
     st.write("#### 📊 مقارنة تفصيلية لحركات الصرف والعهد حسب نوع المعاملة")
     if not all_custody_df.empty and "نوع المعاملة" in all_custody_df.columns:
         custody_type_totals = all_custody_df.groupby("نوع المعاملة")["المبلغ المنصرف كعهدة"].sum().reset_index()
@@ -452,3 +450,5 @@ elif app_mode == "👤 حسابات وعُهد الموظفين":
                 st.metric(f"إجمالي الصرف للموظف: {selected_employee} ({MONTH_NAMES[emp_selected_month]})", f"{total_custody:,.2f} جنيه")
                 
                 st.write("---")
+                st.write(f"### 📄 دفتر أستاذ حركة صرف الموظف: {selected_employee} لشهر {MONTH_NAMES[emp_selected_month]}")
+                st.dataframe(emp_df.style
