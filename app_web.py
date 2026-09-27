@@ -157,7 +157,7 @@ with st.sidebar.container():
 
 st.sidebar.markdown("---")
 
-# القائمة الجانبية (تم حذف "الرسم البياني والتحليلات")
+# القائمة الجانبية (بدون "الرسم البياني والتحليلات")
 st.sidebar.header("النمط والقائمة الجانبية")
 app_mode = st.sidebar.radio(
     "اختر الشاشة:", 
@@ -451,4 +451,4 @@ elif app_mode == "👤 حسابات وعُهد الموظفين":
                 
                 st.write("---")
                 st.write(f"### 📄 دفتر أستاذ حركة صرف الموظف: {selected_employee} لشهر {MONTH_NAMES[emp_selected_month]}")
-                st.dataframe(emp_df.style
+                st.dataframe(emp_df.style.f
