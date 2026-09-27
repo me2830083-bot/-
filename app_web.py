@@ -151,9 +151,12 @@ st.sidebar.markdown(f"""
 """)
 st.sidebar.markdown("---")
 
-# القائمة الجانبية
+# القائمة الجانبية مع إضافة "الواجهة الرئيسية" في المقدمة
 st.sidebar.header("النمط والقائمة الجانبية")
-app_mode = st.sidebar.radio("اختر الشاشة:", ["إدارة الوارد من الشركات", "👤 حسابات وعُهد الموظفين", "📊 الرسم البياني والتحليلات"])
+app_mode = st.sidebar.radio(
+    "اختر الشاشة:", 
+    ["🏠 الواجهة الرئيسية (لوحة المؤشرات)", "إدارة الوارد من الشركات", "👤 حسابات وعُهد الموظفين", "📊 الرسم البياني والتحليلات"]
+)
 
 # جلب قائمة الشركات الموجودة
 existing_companies = [
@@ -161,7 +164,49 @@ existing_companies = [
     if os.path.isdir(os.path.join(DATA_DIR, d))
 ]
 
-if app_mode == "إدارة الوارد من الشركات":
+if app_mode == "🏠 الواجهة الرئيسية (لوحة المؤشرات)":
+    st.subheader("🏠 الواجهة الرئيسية - لوحة المؤشرات العامة")
+    
+    # بطاقات ملخصة علوية
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("إجمالي الوارد العام", f"{total_incoming_treasury:,.2f} جنيه")
+    with col2:
+        st.metric("إجمالي الصرف / العهد", f"{total_custody_treasury:,.2f} جنيه")
+    with col3:
+        st.metric("الرصيد المتبقي بالخزينة", f"{treasury_balance:,.2f} جنيه")
+        
+    st.markdown("---")
+    
+    # قسم الرسوم البيانية في الواجهة الرئيسية
+    r1_col1, r1_col2 = st.columns(2)
+    
+    with r1_col1:
+        st.write("#### 📊 1. إجمالي الوارد العام (حسب نوع المعاملة)")
+        if not all_incoming_df.empty and "نوع المعاملة" in all_incoming_df.columns:
+            incoming_type_totals = all_incoming_df.groupby("نوع المعاملة")["المبلغ"].sum().reset_index()
+            st.bar_chart(incoming_type_totals.set_index("نوع المعاملة")["المبلغ"])
+        else:
+            st.info("لا توجد بيانات وارد مسجلة بعد.")
+            
+    with r1_col2:
+        st.write("#### 🏢 2. إجمالي الوارد لكل شركة")
+        if not all_incoming_df.empty and "الشركة" in all_incoming_df.columns:
+            company_totals = all_incoming_df.groupby("الشركة")["المبلغ"].sum().reset_index()
+            st.bar_chart(company_totals.set_index("الشركة")["المبلغ"])
+        else:
+            st.info("لا توجد بيانات شركات مسجلة بعد.")
+            
+    st.markdown("---")
+    
+    st.write("#### 💳 3. إجمالي الصرف / العهد (حسب نوع المعاملة)")
+    if not all_custody_df.empty and "نوع المعاملة" in all_custody_df.columns:
+        custody_type_totals = all_custody_df.groupby("نوع المعاملة")["المبلغ المنصرف كعهدة"].sum().reset_index()
+        st.bar_chart(custody_type_totals.set_index("نوع المعاملة")["المبلغ المنصرف كعهدة"])
+    else:
+        st.info("لا توجد حركات صرف مسجلة بعد.")
+
+elif app_mode == "إدارة الوارد من الشركات":
     st.sidebar.header("إدارة الشركات والفترات")
 
     # إضافة شركة جديدة
@@ -421,20 +466,4 @@ st.sidebar.markdown("---")
 st.sidebar.subheader("⚠️ إدارة البيانات")
 
 with st.sidebar.expander("🗑️ مسح كل البيانات"):
-    pwd_input = st.text_input("أدخل كلمة المرور للمسح:", type="password")
-    if st.button("تأكيد مسح البيانات"):
-        if pwd_input == "2320166120":
-            if os.path.exists(DATA_DIR):
-                shutil.rmtree(DATA_DIR)
-                os.makedirs(DATA_DIR, exist_ok=True)
-            if os.path.exists(EMPLOYEES_DIR):
-                shutil.rmtree(EMPLOYEES_DIR)
-                os.makedirs(EMPLOYEES_DIR, exist_ok=True)
-            st.sidebar.success("تم مسح جميع البيانات بنجاح!")
-            st.rerun()
-        else:
-            st.sidebar.error("كلمة المرور غير صحيحة!")
-
-# حقوق التطوير
-st.sidebar.markdown("---")
-st.sidebar.markdown("👨‍💻 **Developed by:** **Mohamed Elsayed**")
+    pwd_input = st.text_input("أدخل كلمة المرور للمسح:",
