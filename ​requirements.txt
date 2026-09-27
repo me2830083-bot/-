@@ -1,5 +1,3 @@
-streamlit
-pandas
-st-gsheets-connection
 supabase
 gotrue
+httpx==0.27.2
