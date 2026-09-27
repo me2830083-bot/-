@@ -1,100 +1,74 @@
-import os
 from datetime import datetime
 import pandas as pd
 import streamlit as st
-from supabase import create_client, Client
 
-# 1. إعداد الاتصال بـ Supabase
-SUPABASE_URL = st.secrets["SUPABASE_URL"] if "SUPABASE_URL" in st.secrets else os.getenv("SUPABASE_URL")
-SUPABASE_KEY = st.secrets["SUPABASE_KEY"] if "SUPABASE_KEY" in st.secrets else os.getenv("SUPABASE_KEY")
+# ضبط إعدادات الصفحة
+st.set_page_config(
+    page_title="نظام تسجيل المصروفات",
+    page_icon="💰",
+    layout="wide"
+)
 
-@st.cache_resource
-def init_supabase() -> Client:
-    return create_client(SUPABASE_URL, SUPABASE_KEY)
+# رابط Google Sheet الخاص بك بصيغة CSV للتصدير المباشر
+SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/1TykY6twiO-uivvU7BSYW2ky60vv-T42G1YiJ7FdfYL4/export?format=csv"
 
-supabase = init_supabase()
+COLUMNS = ["الشركة", "التاريخ", "نوع المعاملة", "المبلغ", "المستلم"]
 
-# 2. دوال التعامل مع البيانات من Supabase
-def fetch_companies():
-    """جلب قائمة الشركات المسجلة في الجدول"""
+@st.cache_data(ttl=5)  # إعادة تحديث البيانات كل 5 ثوانٍ تلقائياً
+def load_data():
     try:
-        response = supabase.table("payments").select("company_name").execute()
-        companies = list(set([item["company_name"] for item in response.data if item.get("company_name")]))
-        return sorted(companies)
-    except Exception as e:
-        st.error(f"خطأ في جلب الشركات: {e}")
-        return []
+        df = pd.read_csv(SHEET_CSV_URL)
+        # التأكد من وجود كافة الأعمدة
+        for col in COLUMNS:
+            if col not in df.columns:
+                df[col] = None
+        return df[COLUMNS]
+    except Exception:
+        return pd.DataFrame(columns=COLUMNS)
 
-def fetch_projects(company_name):
-    """جلب المشاريع الخاصة بشركة معينة"""
-    try:
-        response = supabase.table("payments").select("project_name").eq("company_name", company_name).execute()
-        projects = list(set([item["project_name"] for item in response.data if item.get("project_name")]))
-        return sorted(projects)
-    except Exception as e:
-        st.error(f"خطأ في جلب المشاريع: {e}")
-        return []
+st.title("💰 نظام إدارة وتسجيل المصروفات")
 
-def fetch_data():
-    """جلب كل بيانات الجدول لعرضها في لوحة التحكم"""
-    try:
-        response = supabase.table("payments").select("*").execute()
-        return pd.DataFrame(response.data) if response.data else pd.DataFrame()
-    except Exception as e:
-        st.error(f"خطأ في جلب البيانات: {e}")
-        return pd.DataFrame()
+# القائمة الجانبية
+app_mode = st.sidebar.radio("اختر الشاشة:", ["عرض وسجل الحركات", "📊 الرسم البياني والتحليلات"])
 
-# 3. واجهة المستخدم عبر Streamlit
-st.set_page_config(page_title="نظام إدارة المصاريف والمشاريع", layout="wide")
+df_all = load_data()
 
-st.title("📊 نظام إدارة المصاريف والمشاريع المالية")
-st.markdown("---")
-
-# الشريط الجانبي للإدخال أو التصفح
-st.sidebar.header("إدارة البيانات")
-
-menu = st.sidebar.selectbox("اختر الصفحة", ["لوحة التحكم والتقارير", "إضافة مصروف جديد"])
-
-if menu == "إضافة مصروف جديد":
-    st.subheader("➕ تسجيل مصروف جديد")
+if app_mode == "عرض وسجل الحركات":
+    st.sidebar.header("تصفية الشركات")
     
-    with st.form("expense_form"):
-        company_name = st.text_input("اسم الشركة / العميل")
-        project_name = st.text_input("اسم المشروع")
-        amount = st.number_input("المبلغ", min_value=0.0, format="%.2f")
-        expense_date = st.date_input("التاريخ", value=datetime.today())
-        notes = st.text_area("ملاحظات إضافية")
-        
-        submit_button = st.form_submit_button(label="حفظ البيانات")
-        
-        if submit_button:
-            if company_name and project_name:
-                try:
-                    data = {
-                        "company_name": company_name,
-                        "project_name": project_name,
-                        "amount": amount,
-                        "expense_date": str(expense_date),
-                        "notes": notes
-                    }
-                    supabase.table("payments").insert(data).execute()
-                    st.success("تم حفظ المصروف بنجاح في قاعدة البيانات!")
-                except Exception as e:
-                    st.error(f"حدث خطأ أثناء الحفظ: {e}")
-            else:
-                st.warning("يرجى إدخال اسم الشركة واسم المشروع على الأقل.")
+    # جلب الشركات المسجلة من الشيت
+    existing_companies = list(df_all["الشركة"].dropna().unique()) if not df_all.empty else []
 
-elif menu == "لوحة التحكم والتقارير":
-    st.subheader("📈 نظرة عامة والتقارير المالية")
-    
-    df = fetch_data()
-    
-    if not df.empty:
-        # عرض إحصائيات سريعة
-        total_amount = df["amount"].sum() if "amount" in df.columns else 0
-        st.metric(label="إجمالي المصاريف", value=f"{total_amount:,.2f}")
+    if existing_companies:
+        selected_company = st.sidebar.selectbox("اختر الشركة لعرض بياناتها:", sorted(existing_companies))
         
-        st.markdown("### جدول البيانات المسجلة")
-        st.dataframe(df, use_container_width=True)
+        st.subheader(f"🏢 الشركة: {selected_company}")
+        st.write("### 📋 سجل المدفوعات الخاص بالشركة")
+
+        company_df = df_all[df_all["الشركة"] == selected_company]
+
+        if not company_df.empty:
+            st.dataframe(company_df, use_container_width=True)
+            total_amount = pd.to_numeric(company_df["المبلغ"], errors="coerce").sum()
+            st.metric("إجمالي مصروفات الشركة", f"{total_amount:,.2f} جنيه")
+        else:
+            st.info("لا توجد حركات مسجلة لهذه الشركة بعد.")
     else:
-        st.info("لا توجد بيانات مسجلة حتى الآن. يمكنك إضافة مصروف جديد من القائمة الجانبية.")
+        st.info("لا توجد بيانات مسجلة في الشيت حالياً. قم بإضافة بياناتك مباشرة في Google Sheets لتظهر هنا.")
+
+elif app_mode == "📊 الرسم البياني والتحليلات":
+    st.subheader("📈 إحصائيات وإجمالي المدفوعات للشركات")
+    
+    if not df_all.empty:
+        df_analysis = df_all.copy()
+        df_analysis["المبلغ"] = pd.to_numeric(df_analysis["المبلغ"], errors="coerce").fillna(0)
+        company_totals = df_analysis.groupby("الشركة")["المبلغ"].sum().reset_index()
+        
+        st.write("### 🏆 ترتيب الشركات حسب أعلى إجمالي مدفوعات")
+        st.bar_chart(company_totals.set_index("الشركة")["المبلغ"])
+        st.dataframe(company_totals.style.format({"المبلغ": "{:,.2f} جنيه"}), use_container_width=True)
+    else:
+        st.info("لا توجد بيانات مسجلة في الشيت حتى الآن.")
+
+st.sidebar.markdown("---")
+st.sidebar.markdown("👨‍💻 **Developed by:** **Mohamed Elsayed**")
