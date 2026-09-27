@@ -171,41 +171,61 @@ existing_companies = [
 ]
 
 if app_mode == "🏠 الواجهة الرئيسية (لوحة المؤشرات)":
-    st.subheader("🏠 الواجهة الرئيسية - لوحة المؤشرات العامة")
+    st.subheader("🏠 الواجهة الرئيسية - لوحة المؤشرات والتحليلات البصرية")
     
-    # بطاقات ملخصة علوية
+    # 1. تصميم بطاقات KPI احترافية وملونة
     col1, col2, col3 = st.columns(3)
     with col1:
-        st.metric("إجمالي الوارد العام", f"{total_incoming_treasury:,.2f} جنيه")
+        st.markdown(f"""
+        <div style='background-color: #1a365d; padding: 16px; border-radius: 10px; border-left: 5px solid #3182ce;'>
+            <p style='color: #bee3f8; margin: 0; font-size: 14px;'>📥 إجمالي الوارد العام</p>
+            <h3 style='color: #ffffff; margin: 5px 0 0 0;'>{total_incoming_treasury:,.2f} ج</h3>
+        </div>
+        """, unsafe_allow_html=True)
     with col2:
-        st.metric("إجمالي الصرف / العهد", f"{total_custody_treasury:,.2f} جنيه")
+        st.markdown(f"""
+        <div style='background-color: #744210; padding: 16px; border-radius: 10px; border-left: 5px solid #d69e2e;'>
+            <p style='color: #feebc8; margin: 0; font-size: 14px;'>📤 إجمالي الصرف / العهد</p>
+            <h3 style='color: #ffffff; margin: 5px 0 0 0;'>{total_custody_treasury:,.2f} ج</h3>
+        </div>
+        """, unsafe_allow_html=True)
     with col3:
-        st.metric("الرصيد المتبقي بالخزينة", f"{treasury_balance:,.2f} جنيه")
+        balance_color = "#22543d" if treasury_balance >= 0 else "#742a2a"
+        border_color = "#38a169" if treasury_balance >= 0 else "#e53e3e"
+        st.markdown(f"""
+        <div style='background-color: {balance_color}; padding: 16px; border-radius: 10px; border-left: 5px solid {border_color};'>
+            <p style='color: #c6f6d5; margin: 0; font-size: 14px;'>💰 الرصيد المتبقي بالخزينة</p>
+            <h3 style='color: #ffffff; margin: 5px 0 0 0;'>{treasury_balance:,.2f} ج</h3>
+        </div>
+        """, unsafe_allow_html=True)
         
     st.markdown("---")
     
-    # قسم الرسوم البيانية في الواجهة الرئيسية
+    # 2. تنويع الأشكال: عرض مقارنة الشركات (أعمدة) بجانب توزيع الوارد (مخطط مساحي / خطي)
     r1_col1, r1_col2 = st.columns(2)
     
     with r1_col1:
-        st.write("#### 📊 1. إجمالي الوارد العام (حسب نوع المعاملة)")
-        if not all_incoming_df.empty and "نوع المعاملة" in all_incoming_df.columns:
-            incoming_type_totals = all_incoming_df.groupby("نوع المعاملة")["المبلغ"].sum().reset_index()
-            st.bar_chart(incoming_type_totals.set_index("نوع المعاملة")["المبلغ"])
-        else:
-            st.info("لا توجد بيانات وارد مسجلة بعد.")
-            
-    with r1_col2:
-        st.write("#### 🏢 2. إجمالي الوارد لكل شركة")
+        st.write("#### 🏢 حصة كل شركة من إجمالي الوارد")
         if not all_incoming_df.empty and "الشركة" in all_incoming_df.columns:
             company_totals = all_incoming_df.groupby("الشركة")["المبلغ"].sum().reset_index()
+            # عرض مخطط أعمدة تنافسي
             st.bar_chart(company_totals.set_index("الشركة")["المبلغ"])
         else:
             st.info("لا توجد بيانات شركات مسجلة بعد.")
             
+    with r1_col2:
+        st.write("#### 💳 تحليل حركة السيولة حسب (نوع المعاملة)")
+        if not all_incoming_df.empty and "نوع المعاملة" in all_incoming_df.columns:
+            incoming_type_totals = all_incoming_df.groupby("نوع المعاملة")["المبلغ"].sum().reset_index()
+            # استخدام مخطط خطي متغير (Line Chart) للتنويع البصري
+            st.line_chart(incoming_type_totals.set_index("نوع المعاملة")["المبلغ"])
+        else:
+            st.info("لا توجد بيانات وارد مسجلة بعد.")
+            
     st.markdown("---")
     
-    st.write("#### 💳 3. إجمالي الصرف / العهد (حسب نوع المعاملة)")
+    # 3. قسم خاص بمقارنة المصروفات والعهد بطريقة مميزة
+    st.write("#### 📊 مقارنة تفصيلية لحركات الصرف والعهد حسب نوع المعاملة")
     if not all_custody_df.empty and "نوع المعاملة" in all_custody_df.columns:
         custody_type_totals = all_custody_df.groupby("نوع المعاملة")["المبلغ المنصرف كعهدة"].sum().reset_index()
         st.bar_chart(custody_type_totals.set_index("نوع المعاملة")["المبلغ المنصرف كعهدة"])
@@ -432,59 +452,3 @@ elif app_mode == "👤 حسابات وعُهد الموظفين":
                 st.metric(f"إجمالي الصرف للموظف: {selected_employee} ({MONTH_NAMES[emp_selected_month]})", f"{total_custody:,.2f} جنيه")
                 
                 st.write("---")
-                st.write(f"### 📄 دفتر أستاذ حركة صرف الموظف: {selected_employee} لشهر {MONTH_NAMES[emp_selected_month]}")
-                st.dataframe(emp_df.style.format({"المبلغ المنصرف كعهدة": "{:,.2f} جنيه"}), use_container_width=True)
-            else:
-                st.info(f"لا توجد سجلات صرف لهذا الموظف في شهر {MONTH_NAMES[emp_selected_month]} {emp_selected_year}.")
-    else:
-        st.info("لا توجد أي عمليات صرف مسجلة للموظفين حتى الآن.")
-
-elif app_mode == "📊 الرسم البياني والتحليلات":
-    st.subheader("📈 إحصائيات وإجمالي الوارد للشركات")
-    
-    all_df = load_all_data()
-    
-    if not all_df.empty and "الشركة" in all_df.columns and "المبلغ" in all_df.columns:
-        company_totals = all_df.groupby("الشركة")["المبلغ"].sum().reset_index()
-        company_totals = company_totals.sort_values(by="المبلغ", ascending=False)
-        
-        st.write("### 🏆 ترتيب الشركات حسب أعلى إجمالي وارد")
-        st.bar_chart(company_totals.set_index("الشركة")["المبلغ"])
-        
-        st.write("---")
-        
-        col1, col2 = st.columns(2)
-        with col1:
-            st.write("#### 📄 تفاصيل إجمالي الوارد من الشركات")
-            st.dataframe(company_totals.style.format({"المبلغ": "{:,.2f} جنيه"}), use_container_width=True)
-            
-        with col2:
-            if "نوع المعاملة" in all_df.columns:
-                st.write("#### 💳 توزيع الوارد حسب نوع المعاملة")
-                type_totals = all_df.groupby("نوع المعاملة")["المبلغ"].sum().reset_index()
-                st.bar_chart(type_totals.set_index("نوع المعاملة")["المبلغ"])
-    else:
-        st.info("لا توجد بيانات وارد مسجلة في النظام حتى الآن لعرض الرسم البياني.")
-
-# قسم مسح البيانات المحمي بكلمة مرور
-st.sidebar.markdown("---")
-st.sidebar.subheader("⚠️ إدارة البيانات")
-
-with st.sidebar.expander("🗑️ مسح كل البيانات"):
-    pwd_input = st.text_input("أدخل كلمة المرور للمسح:", type="password")
-    if st.button("تأكيد مسح البيانات"):
-        if pwd_input == "2320166120":
-            if os.path.exists(DATA_DIR):
-                shutil.rmtree(DATA_DIR)
-                os.makedirs(DATA_DIR, exist_ok=True)
-            if os.path.exists(EMPLOYEES_DIR):
-                shutil.rmtree(EMPLOYEES_DIR)
-                os.makedirs(EMPLOYEES_DIR, exist_ok=True)
-            st.sidebar.success("تم مسح جميع البيانات بنجاح!")
-            st.rerun()
-        else:
-            st.sidebar.error("كلمة المرور غير صحيحة!")
-
-# حقوق التطوير
-st.sidebar.markdown("---")
-st.sidebar.markdown("👨‍💻 **Developed by:** **Mohamed Elsayed**")
