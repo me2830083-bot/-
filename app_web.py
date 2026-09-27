@@ -6,14 +6,14 @@ import streamlit as st
 
 # ضبط إعدادات الصفحة وإضافة الأيقونة المميزة (💰)
 st.set_page_config(
-    page_title="نظام إدارة وتسجيل الوارد والعهد",
+    page_title="نظام إدارة الوارد وعُهد الموظفين",
     page_icon="💰",
     layout="wide"
 )
 
 # مجلدات البيانات الرئيسية
-DATA_DIR = "company_data"
-EMPLOYEES_DIR = "employees_data"  # مجلد خاص بحسابات العُهد للموظفين
+DATA_DIR = "company_data"         # خاص بالوارد من الشركات فقط
+EMPLOYEES_DIR = "employees_data"  # خاص بحسابات وعُهد الموظفين
 os.makedirs(DATA_DIR, exist_ok=True)
 os.makedirs(EMPLOYEES_DIR, exist_ok=True)
 
@@ -59,7 +59,7 @@ def get_employee_filepath(employee_name):
 
 def add_employee_custody(employee_name, date_val, amount, company_name):
     filepath = get_employee_filepath(employee_name)
-    cols = ["التاريخ", "الشركة", "المبلغ المنصرف"]
+    cols = ["التاريخ", "الشركة المصدرة", "المبلغ المنصرف كعهدة"]
     if os.path.exists(filepath):
         df = pd.read_csv(filepath)
     else:
@@ -67,8 +67,8 @@ def add_employee_custody(employee_name, date_val, amount, company_name):
     
     new_row = {
         "التاريخ": date_val,
-        "الشركة": company_name,
-        "المبلغ المنصرف": amount
+        "الشركة المصدرة": company_name,
+        "المبلغ المنصرف كعهدة": amount
     }
     df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
     df.to_csv(filepath, index=False)
@@ -98,11 +98,11 @@ def load_all_data():
     return pd.DataFrame()
 
 
-st.title("💰 نظام إدارة وتسجيل الوارد والعهد")
+st.title("💰 نظام إدارة الوارد وعُهد الموظفين")
 
 # القائمة الجانبية
 st.sidebar.header("النمط والقائمة الجانبية")
-app_mode = st.sidebar.radio("اختر الشاشة:", ["إدارة الحركات الشهرية", "👤 حسابات وعُهد الموظفين", "📊 الرسم البياني والتحليلات"])
+app_mode = st.sidebar.radio("اختر الشاشة:", ["إدارة الوارد من الشركات", "👤 حسابات وعُهد الموظفين", "📊 الرسم البياني والتحليلات"])
 
 # جلب قائمة الشركات الموجودة
 existing_companies = [
@@ -110,7 +110,7 @@ existing_companies = [
     if os.path.isdir(os.path.join(DATA_DIR, d))
 ]
 
-if app_mode == "إدارة الحركات الشهرية":
+if app_mode == "إدارة الوارد من الشركات":
     st.sidebar.header("إدارة الشركات والفترات")
 
     # إضافة شركة جديدة
@@ -153,47 +153,49 @@ if app_mode == "إدارة الحركات الشهرية":
 
         df = load_monthly_data(selected_company, selected_year, selected_month)
 
-        # نموذج إضافة مدفوعات جديدة
+        # نموذج إضافة حركة جديدة
         with st.form("payment_form", clear_on_submit=True):
-            st.write("### ➕ تسجيل حركة جديدة")
+            st.write("### ➕ تسجيل حركة جديدة (وارد أو صرف عهدة)")
             col1, col2, col3 = st.columns(3)
             with col1:
                 date_val = st.date_input("التاريخ", datetime.now().date())
             with col2:
-                payment_type = st.selectbox("نوع المعاملة", ["كاش", "تحويل", "شيك", "صرف عهدة"])
+                # خيارات المعاملة
+                payment_type = st.selectbox("نوع المعاملة", ["وارد كاش", "وارد تحويل", "وارد شيك", "صرف عهدة"])
                 amount_val = st.number_input("المبلغ", min_value=0.0, step=10.0, format="%.2f")
             with col3:
-                recipient_val = st.text_input("المستلم / اسم الموظف")
+                recipient_val = st.text_input("جهة الوارد / اسم الموظف للعهدة")
 
             submit = st.form_submit_button("حفظ الحركة")
 
             if submit:
                 if amount_val > 0 and recipient_val.strip():
-                    emp_name = recipient_val.strip()
-                    new_row = {
-                        "التاريخ": date_val,
-                        "نوع المعاملة": payment_type,
-                        "المبلغ": amount_val,
-                        "المستلم": emp_name,
-                    }
-                    df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
-                    save_monthly_data(selected_company, selected_year, selected_month, df)
+                    name_val = recipient_val.strip()
                     
-                    # إذا كانت نوع المعاملة "صرف عهدة"، يتم توجيه المبلغ تلقائياً لحساب الموظف المختص
+                    # إذا كانت الحركة "صرف عهدة"، توجه مباشرة لحساب الموظف ولا تضاف لسجل الوارد للشركات
                     if payment_type == "صرف عهدة":
-                        add_employee_custody(emp_name, date_val, amount_val, selected_company)
-                        st.success(f"تم تسجيل الحركة وتوجيه مبلغ {amount_val} جنيه كعهد لحساب الموظف: {emp_name} بنجاح!")
+                        add_employee_custody(name_val, date_val, amount_val, selected_company)
+                        st.success(f"تم صرف مبلغ {amount_val:,.2f} جنيه كعهدة وتوجيهه لحساب الموظف: {name_val} بنجاح (بدون تسجيله في وارد الشركة).")
                     else:
-                        st.success("تم تسجيل الحركة بنجاح!")
+                        # إذا كانت حركة وارد عادية، يتم إضافتها لسجل الشركة
+                        new_row = {
+                            "التاريخ": date_val,
+                            "نوع المعاملة": payment_type,
+                            "المبلغ": amount_val,
+                            "المستلم": name_val,
+                        }
+                        df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
+                        save_monthly_data(selected_company, selected_year, selected_month, df)
+                        st.success("تم تسجيل الوارد للشركة بنجاح!")
                     st.rerun()
                 else:
-                    st.error("يرجى إدخال المبلغ واسم المستلم بشكل صحيح.")
+                    st.error("يرجى إدخال المبلغ والاسم بشكل صحيح.")
 
         st.write("---")
-        st.write("### 📋 سجل المدفوعات الحالي")
+        st.write("### 📋 سجل الوارد الحالي للشركة")
 
         if not df.empty:
-            search_query = st.text_input("🔍 بحث باسم المستلم / الموظف:", "").strip()
+            search_query = st.text_input("🔍 بحث في الوارد:", "").strip()
 
             if search_query:
                 filtered_df = df[df["المستلم"].str.contains(search_query, case=False, na=False)]
@@ -207,7 +209,7 @@ if app_mode == "إدارة الحركات الشهرية":
                 column_config={
                     "نوع المعاملة": st.column_config.SelectboxColumn(
                         "نوع المعاملة",
-                        options=["كاش", "تحويل", "شيك", "صرف عهدة"],
+                        options=["وارد كاش", "وارد تحويل", "وارد شيك"],
                         required=True,
                     )
                 },
@@ -240,39 +242,38 @@ if app_mode == "إدارة الحركات الشهرية":
                     st.rerun()
 
             total_amount = df["المبلغ"].sum()
-            st.metric(f"إجمالي مصروفات شهر {MONTH_NAMES[selected_month]}", f"{total_amount:,.2f} جنيه")
+            st.metric(f"إجمالي الوارد لشهر {MONTH_NAMES[selected_month]}", f"{total_amount:,.2f} جنيه")
         else:
-            st.info("لا توجد حركات مسجلة لهذه الشركة في هذا الشهر بعد.")
+            st.info("لا توجد حركات وارد مسجلة لهذه الشركة في هذا الشهر بعد.")
 
 elif app_mode == "👤 حسابات وعُهد الموظفين":
     st.subheader("👤 تقرير حسابات وعُهد الموظفين")
     
-    # جلب أسماء الموظفين الذين لديهم مجلدات عهد
     employees = [
         d for d in os.listdir(EMPLOYEES_DIR) 
         if os.path.isdir(os.path.join(EMPLOYEES_DIR, d))
     ]
     
     if employees:
-        selected_employee = st.selectbox("اختر اسم الموظف لاستعراض حسابه:", sorted(employees))
+        selected_employee = st.selectbox("اختر اسم الموظف لاستعراض عهده:", sorted(employees))
         emp_file = get_employee_filepath(selected_employee)
         
         if os.path.exists(emp_file):
             emp_df = pd.read_csv(emp_file)
             
-            total_custody = emp_df["المبلغ المنصرف"].sum() if not emp_df.empty else 0
-            st.metric(f"إجمالي العهد المسجلة للموظف: {selected_employee}", f"{total_custody:,.2f} جنيه")
+            total_custody = emp_df["المبلغ المنصرف كعهدة"].sum() if not emp_df.empty else 0
+            st.metric(f"إجمالي العهد المنصرفة للموظف: {selected_employee}", f"{total_custody:,.2f} جنيه")
             
             st.write("---")
-            st.write("### 📄 دفتر أستاذ حركة العهد للموظف:")
-            st.dataframe(emp_df.style.format({"المبلغ المنصرف": "{:,.2f} جنيه"}), use_container_width=True)
+            st.write("### 📄 دفتر حركات العهد:")
+            st.dataframe(emp_df.style.format({"المبلغ المنصرف كعهدة": "{:,.2f} جنيه"}), use_container_width=True)
         else:
             st.info("لا توجد سجلات عهد لهذا الموظف.")
     else:
-        st.info("لا توجد أي عهد مسجلة للموظفين حتى الآن (قم باختيار نوع المعاملة 'صرف عهدة' عند تسجيل حركة جديدة لإضافة موظف تلقائياً).")
+        st.info("لا توجد أي عهد مسجلة للموظفين حتى الآن.")
 
 elif app_mode == "📊 الرسم البياني والتحليلات":
-    st.subheader("📈 إحصائيات وإجمالي المدفوعات للشركات")
+    st.subheader("📈 إحصائيات وإجمالي الوارد للشركات")
     
     all_df = load_all_data()
     
@@ -280,23 +281,23 @@ elif app_mode == "📊 الرسم البياني والتحليلات":
         company_totals = all_df.groupby("الشركة")["المبلغ"].sum().reset_index()
         company_totals = company_totals.sort_values(by="المبلغ", ascending=False)
         
-        st.write("### 🏆 ترتيب الشركات حسب أعلى إجمالي مدفوعات")
+        st.write("### 🏆 ترتيب الشركات حسب أعلى إجمالي وارد")
         st.bar_chart(company_totals.set_index("الشركة")["المبلغ"])
         
         st.write("---")
         
         col1, col2 = st.columns(2)
         with col1:
-            st.write("#### 📄 تفاصيل إجمالي الشركات")
+            st.write("#### 📄 تفاصيل إجمالي الوارد من الشركات")
             st.dataframe(company_totals.style.format({"المبلغ": "{:,.2f} جنيه"}), use_container_width=True)
             
         with col2:
             if "نوع المعاملة" in all_df.columns:
-                st.write("#### 💳 توزيع المدفوعات حسب نوع المعاملة")
+                st.write("#### 💳 توزيع الوارد حسب نوع المعاملة")
                 type_totals = all_df.groupby("نوع المعاملة")["المبلغ"].sum().reset_index()
                 st.bar_chart(type_totals.set_index("نوع المعاملة")["المبلغ"])
     else:
-        st.info("لا توجد بيانات مسجلة في النظام حتى الآن لعرض الرسم البياني.")
+        st.info("لا توجد بيانات وارد مسجلة في النظام حتى الآن لعرض الرسم البياني.")
 
 # قسم مسح البيانات المحمي بكلمة مرور
 st.sidebar.markdown("---")
