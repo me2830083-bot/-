@@ -50,7 +50,7 @@ def save_monthly_data(company_name, year, month, df):
     df.to_csv(filepath, index=False)
 
 
-# دوال خاصة بإدارة حسابات الموظفين (العهد الشهري)
+# دوال خاصة بإدارة حسابات الموظفين (العهد الشهرية بدون عمود الشركة المصدرة)
 def get_employee_month_filepath(employee_name, year, month):
     emp_folder = os.path.join(EMPLOYEES_DIR, employee_name)
     os.makedirs(emp_folder, exist_ok=True)
@@ -58,12 +58,12 @@ def get_employee_month_filepath(employee_name, year, month):
     return os.path.join(emp_folder, filename)
 
 
-def add_employee_custody(employee_name, date_val, amount, company_name):
+def add_employee_custody(employee_name, date_val, amount):
     year = date_val.year
     month = date_val.month
     filepath = get_employee_month_filepath(employee_name, year, month)
     
-    cols = ["التاريخ", "اسم الموظف", "الشركة المصدرة", "المبلغ المنصرف كعهدة"]
+    cols = ["التاريخ", "اسم الموظف", "المبلغ المنصرف كعهدة"]
     if os.path.exists(filepath):
         df = pd.read_csv(filepath)
     else:
@@ -72,7 +72,6 @@ def add_employee_custody(employee_name, date_val, amount, company_name):
     new_row = {
         "التاريخ": date_val,
         "اسم الموظف": employee_name,
-        "الشركة المصدرة": company_name,
         "المبلغ المنصرف كعهدة": amount
     }
     df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
@@ -199,7 +198,7 @@ if app_mode == "إدارة الوارد من الشركات":
                         name_val = recipient_val.strip()
                         
                         if payment_type == "صرف عهدة":
-                            add_employee_custody(name_val, date_val, amount_val, selected_company)
+                            add_employee_custody(name_val, date_val, amount_val)
                             st.success(f"تم صرف مبلغ {amount_val:,.2f} جنيه كعهدة وتوجيهه لحساب الموظف: {name_val} بنجاح (بدون تسجيله في وارد الشركة).")
                         else:
                             new_row = {
@@ -272,7 +271,6 @@ if app_mode == "إدارة الوارد من الشركات":
 elif app_mode == "👤 حسابات وعُهد الموظفين":
     st.subheader("👤 تقرير حسابات وعُهد الموظفين")
     
-    # اختيار السنة والشهر لعرض العهد الخاصة بهما
     st.sidebar.header("فلترة عهد الموظفين بالفترة")
     current_year = datetime.now().year
     current_month = datetime.now().month
