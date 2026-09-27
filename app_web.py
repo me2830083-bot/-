@@ -136,14 +136,14 @@ treasury_balance = total_incoming_treasury - total_custody_treasury
 
 st.title("💰 نظام إدارة الوارد وعُهد الموظفين")
 
-# وضع ملخص الخزينة داخل زر (Expander) أنيق ومضغوط في الشريط الجانبي
+# عرض ملخص الخزينة بشكل مصغر وأنيق في الشريط الجانبي
 st.sidebar.markdown("---")
-with st.sidebar.expander(f"🏦 خزينة النقدية: {treasury_balance:,.2f} ج"):
-    st.markdown(f"""
-    - **إجمالي الوارد:** `{total_incoming_treasury:,.2f}` جنيه
-    - **إجمالي العهد:** `{total_custody_treasury:,.2f}` جنيه
-    - **المتبقي بالخزينة:** **`{treasury_balance:,.2f}` جنيه**
-    """)
+st.sidebar.markdown("### 🏦 ملخص الخزينة")
+st.sidebar.markdown(f"""
+- **الوارد:** `{total_incoming_treasury:,.2f}` ج
+- **العهد:** `{total_custody_treasury:,.2f}` ج
+- **المتبقي:** **`{treasury_balance:,.2f}` ج**
+""")
 st.sidebar.markdown("---")
 
 # القائمة الجانبية
@@ -241,10 +241,10 @@ if app_mode == "إدارة الوارد من الشركات":
 
         df = load_monthly_data(selected_company, selected_year, selected_month)
 
-        # نموذج إضافة حركة جديدة مع عرض المتبقي في الخزينة بشكل مبسط داخل النموذج
+        # نموذج إضافة حركة جديدة مع عرض المتبقي في الخزينة بشكل أنيق
         with st.form("payment_form", clear_on_submit=True):
             st.write("### ➕ تسجيل حركة جديدة (وارد أو صرف عهدة)")
-            st.caption(f"💡 المتبقي بالخزينة: {treasury_balance:,.2f} جنيه")
+            st.caption(f"💡 **المتبقي في الخزينة:** {treasury_balance:,.2f} جنيه")
 
             col1, col2, col3 = st.columns(3)
             with col1:
