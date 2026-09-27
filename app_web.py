@@ -67,7 +67,7 @@ def add_employee_custody(employee_name, date_val, payment_type, amount):
     if os.path.exists(filepath):
         df = pd.read_csv(filepath)
         if "نوع المعاملة" not in df.columns:
-            df.insert(1, "نوع المعاملة", "عهدة كاش")
+            df.insert(1, "نوع المعاملة", "صرف عهده كاش")
     else:
         df = pd.DataFrame(columns=cols)
     
@@ -118,7 +118,7 @@ def load_all_custody_data():
                     try:
                         df = pd.read_csv(filepath)
                         if "نوع المعاملة" not in df.columns:
-                            df.insert(1, "نوع المعاملة", "عهدة كاش")
+                            df.insert(1, "نوع المعاملة", "صرف عهده كاش")
                         all_records.append(df)
                     except Exception:
                         pass
@@ -230,7 +230,7 @@ if app_mode == "إدارة الوارد من الشركات":
             if os.path.exists(emp_file):
                 emp_df = pd.read_csv(emp_file)
                 if "نوع المعاملة" not in emp_df.columns:
-                    emp_df.insert(1, "نوع المعاملة", "عهدة كاش")
+                    emp_df.insert(1, "نوع المعاملة", "صرف عهده كاش")
                 all_custody_records.append(emp_df)
         
         if all_custody_records:
@@ -248,7 +248,7 @@ if app_mode == "إدارة الوارد من الشركات":
 
         df = load_monthly_data(selected_company, selected_year, selected_month)
 
-        # نموذج إضافة حركة جديدة مع تعديل أنواع المعاملات ديناميكياً
+        # نموذج إضافة حركة جديدة (الوارد وأنواع صرف العهدة بالصيغة المطلوبة)
         with st.form("payment_form", clear_on_submit=True):
             st.write("### ➕ تسجيل حركة جديدة (وارد أو صرف عهدة)")
             st.caption(f"💡 المتبقي بالخزينة: {treasury_balance:,.2f} جنيه")
@@ -259,7 +259,7 @@ if app_mode == "إدارة الوارد من الشركات":
             with col2:
                 payment_type = st.selectbox(
                     "نوع المعاملة", 
-                    ["وارد كاش", "وارد تحويل", "وارد شيك", "عهدة كاش", "عهدة تحويل", "عهدة شيك"]
+                    ["وارد كاش", "وارد تحويل", "وارد شيك", "صرف عهده كاش", "صرف عهده تحويل", "صرف عهده شيك"]
                 )
                 amount_val = st.number_input("المبلغ", min_value=0.0, step=10.0, format="%.2f")
             with col3:
@@ -271,8 +271,8 @@ if app_mode == "إدارة الوارد من الشركات":
                 if amount_val > 0 and recipient_val.strip():
                     name_val = recipient_val.strip()
                     
-                    # التحقق إذا كانت المعاملة تبدأ بكلمة عهدة
-                    if payment_type.startswith("عهدة"):
+                    # التحقق إذا كانت المعاملة تبدأ بكلمة صرف عهده
+                    if payment_type.startswith("صرف عهده"):
                         if amount_val > treasury_balance:
                             st.error(f"⚠️ تنبيه: المبلغ المطلوب ({amount_val:,.2f} جنيه) أكبر من المتبقي في الخزينة ({treasury_balance:,.2f} جنيه)!")
                         else:
@@ -382,7 +382,7 @@ elif app_mode == "👤 حسابات وعُهد الموظفين":
                 if os.path.exists(emp_file):
                     emp_df = pd.read_csv(emp_file)
                     if "نوع المعاملة" not in emp_df.columns:
-                        emp_df.insert(1, "نوع المعاملة", "عهدة كاش")
+                        emp_df.insert(1, "نوع المعاملة", "صرف عهده كاش")
                     all_custody_records.append(emp_df)
             
             if all_custody_records:
@@ -403,7 +403,7 @@ elif app_mode == "👤 حسابات وعُهد الموظفين":
             if os.path.exists(emp_file):
                 emp_df = pd.read_csv(emp_file)
                 if "نوع المعاملة" not in emp_df.columns:
-                    emp_df.insert(1, "نوع المعاملة", "عهدة كاش")
+                    emp_df.insert(1, "نوع المعاملة", "صرف عهده كاش")
                 
                 total_custody = emp_df["المبلغ المنصرف كعهدة"].sum() if not emp_df.empty else 0
                 st.metric(f"إجمالي العهد المنصرفة للموظف: {selected_employee} ({MONTH_NAMES[emp_selected_month]})", f"{total_custody:,.2f} جنيه")
@@ -457,11 +457,4 @@ with st.sidebar.expander("🗑️ مسح كل البيانات"):
             if os.path.exists(EMPLOYEES_DIR):
                 shutil.rmtree(EMPLOYEES_DIR)
                 os.makedirs(EMPLOYEES_DIR, exist_ok=True)
-            st.sidebar.success("تم مسح جميع البيانات بنجاح!")
-            st.rerun()
-        else:
-            st.sidebar.error("كلمة المرور غير صحيحة!")
-
-# حقوق التطوير
-st.sidebar.markdown("---")
-st.sidebar.markdown("👨‍💻 **Developed by:** **Mohamed Elsayed**")
+            st.sidebar.success("تم مسح جميع البيانات بنجاح
