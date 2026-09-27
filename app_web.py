@@ -136,12 +136,14 @@ treasury_balance = total_incoming_treasury - total_custody_treasury
 
 st.title("💰 نظام إدارة الوارد وعُهد الموظفين")
 
-# عرض رصيد الخزينة العام في الشريط الجانبي بشكل دائم
+# عرض ملخص الخزينة بشكل مصغر وأنيق في الشريط الجانبي
 st.sidebar.markdown("---")
-st.sidebar.subheader("🏦 ملخص الخزينة العامة")
-st.sidebar.metric("إجمالي الوارد العام", f"{total_incoming_treasury:,.2f} جنيه")
-st.sidebar.metric("إجمالي العهد المنصرفة", f"{total_custody_treasury:,.2f} جنيه")
-st.sidebar.metric("💵 المتبقي في الخزينة", f"{treasury_balance:,.2f} جنيه", delta=f"{treasury_balance:,.2f} جنيه")
+st.sidebar.markdown("### 🏦 ملخص الخزينة")
+st.sidebar.markdown(f"""
+- **الوارد:** `{total_incoming_treasury:,.2f}` ج
+- **العهد:** `{total_custody_treasury:,.2f}` ج
+- **المتبقي:** **`{treasury_balance:,.2f}` ج**
+""")
 st.sidebar.markdown("---")
 
 # القائمة الجانبية
@@ -239,12 +241,10 @@ if app_mode == "إدارة الوارد من الشركات":
 
         df = load_monthly_data(selected_company, selected_year, selected_month)
 
-        # نموذج إضافة حركة جديدة مع عرض المتبقي في الخزينة لحظياً
+        # نموذج إضافة حركة جديدة مع عرض المتبقي في الخزينة بشكل أنيق
         with st.form("payment_form", clear_on_submit=True):
             st.write("### ➕ تسجيل حركة جديدة (وارد أو صرف عهدة)")
-            
-            # عرض تنبيه بالمتبقي الحالي في الخزينة داخل النموذج
-            st.info(f"💡 **المتبقي الحالي في الخزينة:** {treasury_balance:,.2f} جنيه")
+            st.caption(f"💡 **المتبقي في الخزينة:** {treasury_balance:,.2f} جنيه")
 
             col1, col2, col3 = st.columns(3)
             with col1:
@@ -267,7 +267,7 @@ if app_mode == "إدارة الوارد من الشركات":
                         else:
                             add_employee_custody(name_val, date_val, amount_val)
                             new_treasury = treasury_balance - amount_val
-                            st.success(f"تم صرف مبلغ {amount_val:,.2f} جنيه كعهدة للموظف: {name_val} بنجاح. | المتبقي في الخزينة الآن: {new_treasury:,.2f} جنيه")
+                            st.success(f"تم صرف مبلغ {amount_val:,.2f} جنيه كعهدة للموظف: {name_val} بنجاح. | المتبقي في الخزينة: {new_treasury:,.2f} جنيه")
                             st.rerun()
                     else:
                         new_row = {
@@ -338,14 +338,7 @@ if app_mode == "إدارة الوارد من الشركات":
             st.info("لا توجد حركات وارد مسجلة لهذه الشركة في هذا الشهر بعد.")
 
 elif app_mode == "👤 حسابات وعُهد الموظفين":
-    st.subheader("👤 تقرير حسابات وعُهد الموظفين والخزينة")
-    
-    # عرض إحصائيات الخزينة في الأعلى
-    col_t1, col_t2, col_t3 = st.columns(3)
-    col_t1.metric("إجمالي الوارد العام", f"{total_incoming_treasury:,.2f} جنيه")
-    col_t2.metric("إجمالي العهد المنصرفة", f"{total_custody_treasury:,.2f} جنيه")
-    col_t3.metric("💵 المتبقي في الخزينة", f"{treasury_balance:,.2f} جنيه")
-    st.write("---")
+    st.subheader("👤 تقرير حسابات وعُهد الموظفين")
     
     st.sidebar.header("فلترة عهد الموظفين بالفترة")
     current_year = datetime.now().year
@@ -409,13 +402,7 @@ elif app_mode == "👤 حسابات وعُهد الموظفين":
         st.info("لا توجد أي عهد مسجلة للموظفين حتى الآن.")
 
 elif app_mode == "📊 الرسم البياني والتحليلات":
-    st.subheader("📈 إحصائيات وإجمالي الوارد للشركات والخزينة")
-    
-    col_t1, col_t2, col_t3 = st.columns(3)
-    col_t1.metric("إجمالي الوارد العام", f"{total_incoming_treasury:,.2f} جنيه")
-    col_t2.metric("إجمالي العهد المنصرفة", f"{total_custody_treasury:,.2f} جنيه")
-    col_t3.metric("💵 المتبقي في الخزينة", f"{treasury_balance:,.2f} جنيه")
-    st.write("---")
+    st.subheader("📈 إحصائيات وإجمالي الوارد للشركات")
     
     all_df = load_all_data()
     
