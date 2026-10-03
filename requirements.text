@@ -4,3 +4,6 @@ supabase==2.3.0
 streamlit
 pandas
 openpyxl
+streamlit
+pandas
+openpyxl
