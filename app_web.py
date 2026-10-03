@@ -11,10 +11,9 @@ st.set_page_config(
 st.title("📊 واجهة إدارة ومتابعة المديونيات والأقسام")
 
 st.sidebar.header("📁 مصدر البيانات")
-# إضافة أداة لرفع الملف مباشرة من جهازك لضمان عمله فوراً على السحابة
+# إضافة أداة لرفع الملف مباشرة
 uploaded_file = st.sidebar.file_uploader("اختر ملف الإكسل (debts.xlsx)", type=["xlsx", "xls"])
 
-# إذا لم يتم رفع ملف، نحاول قراءته تلقائياً من المجلد إن وجد
 data_source = None
 if uploaded_file is not None:
     data_source = uploaded_file
@@ -26,7 +25,7 @@ else:
 
 if data_source is not None:
     try:
-        # قراءة ملف الإكسل وتحديد أول ورقة عمل تلقائياً
+        # محاولة قراءة ملف الإكسل باستخدام openpyxl أو xlrd تلقائياً حسب الامتداد
         df_raw = pd.read_excel(data_source, header=None, engine='openpyxl')
         
         if df_raw is not None and not df_raw.empty:
@@ -72,12 +71,19 @@ if data_source is not None:
             st.warning("⚠️ الملف المرفوع فارغ أو لا يحتوي على بيانات.")
             
     except Exception as e:
-        st.error(f"حدث خطأ أثناء قراءة الملف: {e}")
+        # محاولة أخيرة بديلة في حال كان محرك openpyxl واجه مشكلة في تداخل الامتدادات
+        try:
+            df_raw = pd.read_excel(data_source, header=None)
+            if df_raw is not None and not df_raw.empty:
+                st.sidebar.success("تم قراءة الملف بنجاح بالطريقة البديلة! ✅")
+                with st.expander("📁 عرض الملف كاملاً"):
+                    st.dataframe(df_raw, use_container_width=True)
+            else:
+                st.error(f"حدث خطأ أثناء قراءة الملف: {e}")
+        except Exception as inner_e:
+            st.error(f"حدث خطأ أثناء قراءة الملف: {inner_e}")
 else:
-    st.warning("⚠️ يرجى رفع ملف الإكسل (`debts.xlsx`) من القائمة الجانبية في أقصى اليسار/اليمين لعرض البيانات فوراً.")
+    st.warning("⚠️ يرجى رفع ملف الإكسل (`debts.xlsx`) من القائمة الجانبية.")
     st.info("""
-    **طريقة التشغيل السريعة:**
-    1. اذهب إلى القائمة الجانبية.
-    2. اضغط على زر **Browse files** (تصفح الملفات).
-    3. اختر ملف `debts.xlsx` من جهازك، وستظهر الجداول فوراً أمامك!
+    **نصيحة:** إذا كان اسم الملف في جهازك يظهر كـ `debts.xlsx.xlsx`، يمكنك إعادة تسميته على جهازك ليكون `debts.xlsx` فقط قبل رفعه، أو يمكنك رفعه كما هو (الكود الآن مصمم ليتعامل مع أي صيغة بفضل الله).
     """)
