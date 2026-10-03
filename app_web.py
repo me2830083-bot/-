@@ -11,8 +11,8 @@ st.set_page_config(
 
 st.title("📊 واجهة إدارة ومتابعة المديونيات والأقسام")
 
-# الشريط الجانبي لتحديد مسار الملف المحلي
-st.sidebar.header("📁 إعدادات الملف المحلي")
+# الشريط الجانبي لتحديد مسار الملف (تم ضبط القيمة الافتراضية لاسم الملف المرفوع على جيت هوب)
+st.sidebar.header("📁 إعدادات الملف")
 file_path = st.sidebar.text_input("مسار أو اسم ملف الإكسل:", "debts.xlsx")
 
 # زر لتحديث البيانات يدوياً من الملف
@@ -22,9 +22,10 @@ if st.sidebar.button("🔄 تحديث البيانات من الملف"):
 
 @st.cache_data
 def load_excel_data(path):
+    # التحقق من وجود الملف محلياً أو على بيئة الاستضافة
     if os.path.exists(path):
         try:
-            # قراءة الملف بالكامل بدون رأس افتراضي لتوزيع الجداول الجانبية بدقة
+            # قراءة ملف الإكسل وتحديد أول ورقة عمل تلقائياً
             df = pd.read_excel(path, header=None, engine='openpyxl')
             return df
         except Exception as e:
@@ -45,7 +46,7 @@ if df_raw is not None and not df_raw.empty:
     with col1:
         st.markdown("### 👷 قسم المقاولين")
         try:
-            # استخراج أعمدة المقاولين بناءً على تخطيط الشيت لديك
+            # استخراج أعمدة المقاولين بناءً على تخطيط الشيت
             contractors_df = df_raw.iloc[3:, [4, 5]].dropna(how="all")
             contractors_df.columns = ["الاسم", "المبلغ"]
             st.dataframe(contractors_df, use_container_width=True)
@@ -55,7 +56,7 @@ if df_raw is not None and not df_raw.empty:
     with col2:
         st.markdown("### 🚛 قسم النقل")
         try:
-            # استخراج أعمدة النقل بناءً على تخطيط الشيت لديك
+            # استخراج أعمدة النقل بناءً على تخطيط الشيت
             transport_df = df_raw.iloc[3:, [7, 8]].dropna(how="all")
             transport_df.columns = ["الاسم", "المبلغ"]
             st.dataframe(transport_df, use_container_width=True)
@@ -66,7 +67,7 @@ if df_raw is not None and not df_raw.empty:
     
     # قسم البحث العام والتفصيلي
     st.subheader("🔍 بحث شامل في كافة البيانات")
-    search_query = st.text_input("ابحث عن أي اسم أو بند (مثل: رمضان، الإيجار، أبناء أسيوط...):").strip()
+    search_query = st.text_input("ابحث عن أي اسم أو بند:").strip()
     
     if search_query:
         mask = df_raw.astype(str).apply(lambda x: x.str.contains(search_query, case=False, na=False)).any(axis=1)
@@ -79,8 +80,8 @@ if df_raw is not None and not df_raw.empty:
 else:
     st.warning(f"⚠️ لم يتم العثور على الملف في المسار أو أن الملف فارغ: `{file_path}`")
     st.info("""
-    **تعليمات التشغيل:**
-    1. تأكد أن ملف الإكسل موجود في نفس المجلد الذي يعمل منه هذا الكود وأن اسمه مطابق تماماً لما كتبته في القائمة الجانبية (مثلاً `debts.xlsx`).
-    2. إذا كان امتداد الملف مختلفاً (مثل `.xls`)، يفضل حفظه بصيغة `.xlsx` الحديثة.
-    3. بعد التأكد، اضغط على زر **(تحديث البيانات من الملف)** في القائمة الجانبية.
+    **تعليمات التشغيل على السحابة:**
+    1. تأكد أن ملف `debts.xlsx` مرفوع في المجلد الرئيسي لمستودع جيت هوب بجانب كود التطبيق.
+    2. تأكد أن الاسم مكتوب بدقة في خانة المسار الجانبية.
+    3. اضغط على زر **(تحديث البيانات من الملف)** أو قم بإعادة تشغيل التطبيق (Reboot) من لوحة تحكم Streamlit Cloud.
     """)
